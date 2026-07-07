@@ -32,6 +32,8 @@ Route::middleware(['auth'])->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    Route::put('/coa/{id}/toggle-active', [COAController::class, 'toggleActive'])->name('coa.toggleActive');
+
     Route::put('/users/{id}/change-password', [UserController::class, 'changePassword'])->name('users.changePassword');
     Route::put('/users/{id}/toggle-active', [UserController::class, 'toggleActive'])->name('users.toggleActive');
     Route::post('/change-my-password', [UserController::class, 'changeMyPassword'])->name('users.changeMyPassword');
