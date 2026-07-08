@@ -11,7 +11,7 @@ class PurchaseInvoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'invoice_no', 'vendor_id', 'purchase_order_id', 'invoice_date',
+        'invoice_no', 'vendor_id', 'purchase_order_id', 'location_id', 'invoice_date',
         'bill_no', 'ref_no', 'remarks',
         'total_amount', 'total_quantity', 'net_amount',
         'is_tax_invoice', 'gst_type', 'gst_rate', 'gst_amount',
@@ -41,5 +41,10 @@ class PurchaseInvoice extends Model
     public function attachments()
     {
         return $this->hasMany(PurchaseInvoiceAttachment::class);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
     }
 }

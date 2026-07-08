@@ -32,6 +32,18 @@
             </div>
 
             <div class="col-md-2 mb-3">
+              <label>Location</label>
+              <select name="location_id" class="form-control select2-js">
+                @foreach ($locations as $loc)
+                  <option value="{{ $loc->id }}"
+                    {{ (isset($invoice) ? $invoice->location_id == $loc->id : $loc->is_default) ? 'selected' : '' }}>
+                    {{ $loc->name }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+
+            <div class="col-md-2 mb-3">
               <label>From Purchase Order <small class="text-muted">(optional)</small></label>
               <select id="po_selector" class="form-control select2-js" onchange="loadFromPO(this.value)">
                 <option value="">— None —</option>

@@ -30,6 +30,19 @@
                 @endforeach
               </select>
             </div>
+
+            <div class="col-md-2 mb-3">
+              <label>Location</label>
+              <select name="location_id" class="form-control select2-js">
+                @foreach ($locations as $loc)
+                  <option value="{{ $loc->id }}"
+                    {{ (isset($invoice) ? $invoice->location_id == $loc->id : $loc->is_default) ? 'selected' : '' }}>
+                    {{ $loc->name }}
+                  </option>
+                @endforeach
+              </select>
+            </div>
+            
             <div class="col-md-2 mb-3">
               <label>Bill #</label>
               <input type="text" name="bill_no" class="form-control" value="{{ $invoice->bill_no }}">

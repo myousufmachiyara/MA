@@ -55,13 +55,31 @@ class PurchaseInvoiceController extends Controller
         $products = Product::with('variations')->orderBy('name')->get();
         $vendors  = ChartOfAccounts::where('account_type', 'vendor')->orderBy('name')->get();
         $units    = MeasurementUnit::all();
-
+        $locations = Location::where('is_active', true)->orderBy('name')->get();
         $openOrders = PurchaseOrder::whereIn('status', ['pending', 'partial'])
             ->orderByDesc('id')->get(['id', 'order_no', 'vendor_id']);
 
-        return view('purchases.create', compact('products', 'vendors', 'units', 'openOrders'));
+        return view('purchases.create', compact('products', 'locations' ,'vendors', 'units', 'openOrders'));
     }
 
+    public function edit($id)
+    {
+        $invoice  = PurchaseInvoice::with(['items.product.variations', 'items.variation', 'attachments'])->findOrFail($id);
+        $vendors  = ChartOfAccounts::where('account_type', 'vendor')->orderBy('name')->get();
+        $products = Product::with('variations')->select('id', 'name', 'measurement_unit')->get();
+        $locations = Location::where('is_active', true)->orderBy('name')->get();
+        $units    = MeasurementUnit::all();
+
+        return view('purchases.edit', compact('invoice', 'vendors', 'locations' ,'products', 'units'));
+    }
+
+    /**
+     * STORE
+     *
+     * Accounting entry:
+     *   Dr Inventory / Stock in Hand   (asset increases)
+     *   Cr Vendor / Accounts Payable   (liability increases)
+     */
     /**
      * STORE
      *
@@ -77,6 +95,7 @@ class PurchaseInvoiceController extends Controller
             'invoice_date'           => 'required|date',
             'vendor_id'              => 'required|exists:chart_of_accounts,id',
             'purchase_order_id'      => 'nullable|exists:purchase_orders,id',
+            'location_id'            => 'nullable|exists:locations,id',
             'bill_no'                => 'nullable|string|max:100',
             'ref_no'                 => 'nullable|string|max:100',
             'remarks'                => 'nullable|string',
@@ -96,10 +115,13 @@ class PurchaseInvoiceController extends Controller
             $last      = PurchaseInvoice::withTrashed()->lockForUpdate()->orderByDesc('id')->first();
             $invoiceNo = str_pad($last ? intval($last->invoice_no) + 1 : 1, 6, '0', STR_PAD_LEFT);
 
+            $locationId = $request->location_id ?? StockService::defaultLocationId();
+
             $invoice = PurchaseInvoice::create([
                 'invoice_no'         => $invoiceNo,
                 'vendor_id'          => $request->vendor_id,
                 'purchase_order_id'  => $request->purchase_order_id,
+                'location_id'        => $locationId,
                 'invoice_date'       => $request->invoice_date,
                 'bill_no'            => $request->bill_no,
                 'ref_no'             => $request->ref_no,
@@ -129,8 +151,6 @@ class PurchaseInvoiceController extends Controller
                     'price'        => $price,
                 ]);
 
-                // Stock — variable products update their own column, simple
-                // products derive their balance purely from the ledger.
                 StockService::move(
                     $itemData['item_id'],
                     $itemData['variation_id'] ?? null,
@@ -138,7 +158,8 @@ class PurchaseInvoiceController extends Controller
                     'in',
                     'purchase_invoice',
                     $invoice->id,
-                    "Purchase Invoice #{$invoiceNo}"
+                    "Purchase Invoice #{$invoiceNo}",
+                    $locationId
                 );
 
                 // Cost tracking — last purchase price becomes current cost (used by Sale COGS)
@@ -166,23 +187,26 @@ class PurchaseInvoiceController extends Controller
                 'net_amount'     => $totalAmount,
             ]);
 
-            $inventoryAccount = $this->inventoryAccount();
+            // Skip posting an empty voucher for a zero-value invoice (e.g. free samples)
+            if ($totalAmount > 0) {
+                $inventoryAccount = $this->inventoryAccount();
 
-            VoucherService::postEntries(
-                [
-                    'voucher_type'   => 'purchase',
-                    'voucher_date'   => $request->invoice_date,
-                    'reference_type' => PurchaseInvoice::class,
-                    'reference_id'   => $invoice->id,
-                    'remarks'        => "Purchase Invoice #{$invoiceNo}",
-                ],
-                [
-                    ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
-                    ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
-                ]
-            );
+                VoucherService::postEntries(
+                    [
+                        'voucher_type'   => 'purchase',
+                        'voucher_date'   => $request->invoice_date,
+                        'reference_type' => PurchaseInvoice::class,
+                        'reference_id'   => $invoice->id,
+                        'remarks'        => "Purchase Invoice #{$invoiceNo}",
+                    ],
+                    [
+                        ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
+                        ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
+                    ]
+                );
 
-            Log::info('[PI] Voucher posted', ['amount' => $totalAmount]);
+                Log::info('[PI] Voucher posted', ['amount' => $totalAmount]);
+            }
 
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
@@ -213,22 +237,12 @@ class PurchaseInvoiceController extends Controller
         }
     }
 
-    public function edit($id)
-    {
-        $invoice  = PurchaseInvoice::with(['items.product.variations', 'items.variation', 'attachments'])
-                        ->findOrFail($id);
-        $vendors  = ChartOfAccounts::where('account_type', 'vendor')->orderBy('name')->get();
-        $products = Product::with('variations')->select('id', 'name', 'measurement_unit')->get();
-        $units    = MeasurementUnit::all();
-
-        return view('purchases.edit', compact('invoice', 'vendors', 'products', 'units'));
-    }
-
     public function update(Request $request, $id)
     {
         $request->validate([
             'invoice_date'           => 'required|date',
             'vendor_id'              => 'required|exists:chart_of_accounts,id',
+            'location_id'            => 'nullable|exists:locations,id',
             'bill_no'                => 'nullable|string|max:100',
             'ref_no'                 => 'nullable|string|max:100',
             'remarks'                => 'nullable|string',
@@ -236,6 +250,7 @@ class PurchaseInvoiceController extends Controller
             'items'                  => 'required|array|min:1',
             'items.*.item_id'        => 'required|exists:products,id',
             'items.*.variation_id'   => 'nullable|exists:product_variations,id',
+            'items.*.po_item_id'     => 'nullable|exists:purchase_order_items,id',
             'items.*.quantity'       => 'required|numeric|min:0.01',
             'items.*.unit'           => 'required|exists:measurement_units,id',
             'items.*.price'          => 'required|numeric|min:0',
@@ -246,10 +261,14 @@ class PurchaseInvoiceController extends Controller
         try {
             $invoice = PurchaseInvoice::with('items')->findOrFail($id);
 
+            // Reverse old stock at the location it was originally received into
+            $oldLocationId = $invoice->location_id ?? StockService::defaultLocationId();
+
             foreach ($invoice->items as $oldItem) {
                 StockService::move(
                     $oldItem->item_id, $oldItem->variation_id, $oldItem->quantity,
-                    'out', 'purchase_invoice', $invoice->id, "Reversal — editing Purchase Invoice #{$invoice->invoice_no}"
+                    'out', 'purchase_invoice', $invoice->id, "Reversal — editing Purchase Invoice #{$invoice->invoice_no}",
+                    $oldLocationId
                 );
 
                 if ($oldItem->po_item_id) {
@@ -258,8 +277,11 @@ class PurchaseInvoiceController extends Controller
                 }
             }
 
+            $newLocationId = $request->location_id ?? $oldLocationId;
+
             $invoice->update([
                 'vendor_id'    => $request->vendor_id,
+                'location_id'  => $newLocationId,
                 'invoice_date' => $request->invoice_date,
                 'bill_no'      => $request->bill_no,
                 'ref_no'       => $request->ref_no,
@@ -293,7 +315,8 @@ class PurchaseInvoiceController extends Controller
 
                 StockService::move(
                     $itemData['item_id'], $variationId, $qty,
-                    'in', 'purchase_invoice', $invoice->id, "Updated Purchase Invoice #{$invoice->invoice_no}"
+                    'in', 'purchase_invoice', $invoice->id, "Updated Purchase Invoice #{$invoice->invoice_no}",
+                    $newLocationId
                 );
 
                 $target = $variationId ? ProductVariation::find($variationId) : Product::find($itemData['item_id']);
@@ -316,21 +339,23 @@ class PurchaseInvoiceController extends Controller
                 'net_amount'     => $totalAmount,
             ]);
 
-            $inventoryAccount = $this->inventoryAccount();
+            if ($totalAmount > 0) {
+                $inventoryAccount = $this->inventoryAccount();
 
-            VoucherService::postOrUpdateEntries(
-                PurchaseInvoice::class,
-                $invoice->id,
-                'purchase',
-                [
-                    'voucher_date' => $request->invoice_date,
-                    'remarks'      => "Updated Purchase Invoice #{$invoice->invoice_no}",
-                ],
-                [
-                    ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
-                    ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
-                ]
-            );
+                VoucherService::postOrUpdateEntries(
+                    PurchaseInvoice::class,
+                    $invoice->id,
+                    'purchase',
+                    [
+                        'voucher_date' => $request->invoice_date,
+                        'remarks'      => "Updated Purchase Invoice #{$invoice->invoice_no}",
+                    ],
+                    [
+                        ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
+                        ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
+                    ]
+                );
+            }
 
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
@@ -360,10 +385,13 @@ class PurchaseInvoiceController extends Controller
         DB::beginTransaction();
 
         try {
+            $locationId = $invoice->location_id ?? StockService::defaultLocationId();
+
             foreach ($invoice->items as $item) {
                 StockService::move(
                     $item->item_id, $item->variation_id, $item->quantity,
-                    'out', 'purchase_invoice', $invoice->id, "Deleted Purchase Invoice #{$invoice->invoice_no}"
+                    'out', 'purchase_invoice', $invoice->id, "Deleted Purchase Invoice #{$invoice->invoice_no}",
+                    $locationId
                 );
 
                 if ($item->po_item_id) {
@@ -404,12 +432,15 @@ class PurchaseInvoiceController extends Controller
         try {
             $invoice->restore();
 
+            $locationId = $invoice->location_id ?? StockService::defaultLocationId();
+
             foreach ($invoice->items()->onlyTrashed()->get() as $item) {
                 $item->restore();
 
                 StockService::move(
                     $item->item_id, $item->variation_id, $item->quantity,
-                    'in', 'purchase_invoice', $invoice->id, "Restored Purchase Invoice #{$invoice->invoice_no}"
+                    'in', 'purchase_invoice', $invoice->id, "Restored Purchase Invoice #{$invoice->invoice_no}",
+                    $locationId
                 );
 
                 if ($item->po_item_id) {
