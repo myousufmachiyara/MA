@@ -194,9 +194,6 @@ class DatabaseSeeder extends Seeder
             // ── ACCOUNTS ADDED FOR SALE MODULE (GST / WHT) ───────────
             ['id' => 16, 'account_code' => '203001', 'shoa_id' =>  5, 'name' => 'GST Payable (Output Tax)', 'account_type' => 'liability',  'receivables' => 0, 'payables' => 0],
             ['id' => 17, 'account_code' => '105001', 'shoa_id' =>  4, 'name' => 'WHT Receivable',           'account_type' => 'receivable', 'receivables' => 0, 'payables' => 0],
-
-            ['id' => 16, 'account_code' => '203001', 'shoa_id' => 15, 'name' => 'GST Payable (Output Tax)', 'account_type' => 'liability',   'receivables' => 0, 'payables' => 0],
-            ['id' => 17, 'account_code' => '105001', 'shoa_id' => 16, 'name' => 'WHT Receivable',            'account_type' => 'receivable',  'receivables' => 0, 'payables' => 0],
         ];
 
         foreach ($coaData as $data) {
