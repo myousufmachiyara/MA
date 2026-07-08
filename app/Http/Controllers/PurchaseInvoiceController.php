@@ -12,6 +12,8 @@ use App\Models\ProductVariation;
 use App\Models\Voucher;
 use App\Models\MeasurementUnit;
 use App\Models\ChartOfAccounts;
+use App\Services\VoucherService;
+use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,31 +30,6 @@ class PurchaseInvoiceController extends Controller
             throw new \Exception('Inventory account (104001 — Stock in Hand) not found. Please check your Chart of Accounts seeder.');
         }
         return $account;
-    }
-
-    /**
-     * FIX: single place to add stock, correctly handling all three cases:
-     * variable product (variation given), simple product (no variation),
-     * and unknown/missing product (logged, not silently ignored).
-     */
-    private function adjustStock($itemId, $variationId, float $qty, string $direction = 'increment'): void
-    {
-        if ($variationId) {
-            $variation = ProductVariation::find($variationId);
-            if ($variation) {
-                $variation->{$direction}('stock_quantity', $qty);
-                return;
-            }
-            Log::warning('[PI] Variation not found for stock adjustment', ['variation_id' => $variationId]);
-            return;
-        }
-
-        $product = Product::find($itemId);
-        if ($product) {
-            $product->{$direction}('stock_quantity', $qty);
-            return;
-        }
-        Log::warning('[PI] Product not found for stock adjustment', ['item_id' => $itemId]);
     }
 
     public function index(Request $request)
@@ -79,13 +56,19 @@ class PurchaseInvoiceController extends Controller
         $vendors  = ChartOfAccounts::where('account_type', 'vendor')->orderBy('name')->get();
         $units    = MeasurementUnit::all();
 
-        // Optional: open orders list, for the "Create from PO" dropdown
         $openOrders = PurchaseOrder::whereIn('status', ['pending', 'partial'])
             ->orderByDesc('id')->get(['id', 'order_no', 'vendor_id']);
 
         return view('purchases.create', compact('products', 'vendors', 'units', 'openOrders'));
     }
 
+    /**
+     * STORE
+     *
+     * Accounting entry:
+     *   Dr Inventory / Stock in Hand   (asset increases)
+     *   Cr Vendor / Accounts Payable   (liability increases)
+     */
     public function store(Request $request)
     {
         Log::info('[PI] Store started', ['user_id' => auth()->id()]);
@@ -110,7 +93,6 @@ class PurchaseInvoiceController extends Controller
         DB::beginTransaction();
 
         try {
-            // FIX: lockForUpdate prevents duplicate invoice numbers under concurrent saves
             $last      = PurchaseInvoice::withTrashed()->lockForUpdate()->orderByDesc('id')->first();
             $invoiceNo = str_pad($last ? intval($last->invoice_no) + 1 : 1, 6, '0', STR_PAD_LEFT);
 
@@ -147,10 +129,24 @@ class PurchaseInvoiceController extends Controller
                     'price'        => $price,
                 ]);
 
-                // FIX: covers products with no variation too
-                $this->adjustStock($itemData['item_id'], $itemData['variation_id'] ?? null, $qty, 'increment');
+                // Stock — variable products update their own column, simple
+                // products derive their balance purely from the ledger.
+                StockService::move(
+                    $itemData['item_id'],
+                    $itemData['variation_id'] ?? null,
+                    $qty,
+                    'in',
+                    'purchase_invoice',
+                    $invoice->id,
+                    "Purchase Invoice #{$invoiceNo}"
+                );
 
-                // If this line fulfills part of a PO item, record it
+                // Cost tracking — last purchase price becomes current cost (used by Sale COGS)
+                $target = ($itemData['variation_id'] ?? null)
+                    ? ProductVariation::find($itemData['variation_id'])
+                    : Product::find($itemData['item_id']);
+                $target?->update(['cost_price' => $price]);
+
                 if (!empty($itemData['po_item_id'])) {
                     $poItem = PurchaseOrderItem::find($itemData['po_item_id']);
                     if ($poItem) {
@@ -159,7 +155,6 @@ class PurchaseInvoiceController extends Controller
                 }
             }
 
-            // Sync PO status if this invoice was linked to one
             if ($request->purchase_order_id) {
                 $order = PurchaseOrder::find($request->purchase_order_id);
                 $order?->refreshStatus();
@@ -168,22 +163,26 @@ class PurchaseInvoiceController extends Controller
             $invoice->update([
                 'total_amount'   => $totalAmount,
                 'total_quantity' => $totalQty,
-                'net_amount'     => $totalAmount, // no tax split yet — see gst_* fields for future use
+                'net_amount'     => $totalAmount,
             ]);
 
             $inventoryAccount = $this->inventoryAccount();
 
-            Voucher::create([
-                'date'         => $request->invoice_date,
-                'voucher_type' => 'journal',
-                'ac_dr_sid'    => $inventoryAccount->id,
-                'ac_cr_sid'    => $request->vendor_id,
-                'amount'       => $totalAmount,
-                'reference'    => 'PI-' . $invoice->id,
-                'remarks'      => "Purchase Invoice #{$invoiceNo}",
-            ]);
+            VoucherService::postEntries(
+                [
+                    'voucher_type'   => 'purchase',
+                    'voucher_date'   => $request->invoice_date,
+                    'reference_type' => PurchaseInvoice::class,
+                    'reference_id'   => $invoice->id,
+                    'remarks'        => "Purchase Invoice #{$invoiceNo}",
+                ],
+                [
+                    ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
+                    ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
+                ]
+            );
 
-            Log::info('[PI] Voucher created', ['amount' => $totalAmount]);
+            Log::info('[PI] Voucher posted', ['amount' => $totalAmount]);
 
             if ($request->hasFile('attachments')) {
                 foreach ($request->file('attachments') as $file) {
@@ -247,10 +246,11 @@ class PurchaseInvoiceController extends Controller
         try {
             $invoice = PurchaseInvoice::with('items')->findOrFail($id);
 
-            // Step 1: Reverse old stock (both variation and simple-product cases)
-            // and unwind any PO received_quantity this invoice had contributed.
             foreach ($invoice->items as $oldItem) {
-                $this->adjustStock($oldItem->item_id, $oldItem->variation_id, $oldItem->quantity, 'decrement');
+                StockService::move(
+                    $oldItem->item_id, $oldItem->variation_id, $oldItem->quantity,
+                    'out', 'purchase_invoice', $invoice->id, "Reversal — editing Purchase Invoice #{$invoice->invoice_no}"
+                );
 
                 if ($oldItem->po_item_id) {
                     $poItem = PurchaseOrderItem::find($oldItem->po_item_id);
@@ -291,7 +291,13 @@ class PurchaseInvoiceController extends Controller
                     'price'        => $price,
                 ]);
 
-                $this->adjustStock($itemData['item_id'], $variationId, $qty, 'increment');
+                StockService::move(
+                    $itemData['item_id'], $variationId, $qty,
+                    'in', 'purchase_invoice', $invoice->id, "Updated Purchase Invoice #{$invoice->invoice_no}"
+                );
+
+                $target = $variationId ? ProductVariation::find($variationId) : Product::find($itemData['item_id']);
+                $target?->update(['cost_price' => $price]);
 
                 if ($poItemId) {
                     $poItem = PurchaseOrderItem::find($poItemId);
@@ -312,14 +318,17 @@ class PurchaseInvoiceController extends Controller
 
             $inventoryAccount = $this->inventoryAccount();
 
-            Voucher::updateOrCreate(
-                ['reference' => 'PI-' . $invoice->id, 'voucher_type' => 'journal'],
+            VoucherService::postOrUpdateEntries(
+                PurchaseInvoice::class,
+                $invoice->id,
+                'purchase',
                 [
-                    'date'      => $request->invoice_date,
-                    'ac_dr_sid' => $inventoryAccount->id,
-                    'ac_cr_sid' => $request->vendor_id,
-                    'amount'    => $totalAmount,
-                    'remarks'   => "Updated Purchase Invoice #{$invoice->invoice_no}",
+                    'voucher_date' => $request->invoice_date,
+                    'remarks'      => "Updated Purchase Invoice #{$invoice->invoice_no}",
+                ],
+                [
+                    ['account_id' => $inventoryAccount->id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Stock received'],
+                    ['account_id' => $request->vendor_id,   'debit' => 0, 'credit' => $totalAmount, 'narration' => 'Vendor payable'],
                 ]
             );
 
@@ -352,7 +361,10 @@ class PurchaseInvoiceController extends Controller
 
         try {
             foreach ($invoice->items as $item) {
-                $this->adjustStock($item->item_id, $item->variation_id, $item->quantity, 'decrement');
+                StockService::move(
+                    $item->item_id, $item->variation_id, $item->quantity,
+                    'out', 'purchase_invoice', $invoice->id, "Deleted Purchase Invoice #{$invoice->invoice_no}"
+                );
 
                 if ($item->po_item_id) {
                     $poItem = PurchaseOrderItem::find($item->po_item_id);
@@ -365,7 +377,9 @@ class PurchaseInvoiceController extends Controller
                 $order?->refreshStatus();
             }
 
-            Voucher::where('reference', 'PI-' . $invoice->id)->delete();
+            Voucher::where('reference_type', PurchaseInvoice::class)
+                ->where('reference_id', $invoice->id)
+                ->delete();
 
             $invoice->items()->delete();
             $invoice->delete();
@@ -392,7 +406,11 @@ class PurchaseInvoiceController extends Controller
 
             foreach ($invoice->items()->onlyTrashed()->get() as $item) {
                 $item->restore();
-                $this->adjustStock($item->item_id, $item->variation_id, $item->quantity, 'increment');
+
+                StockService::move(
+                    $item->item_id, $item->variation_id, $item->quantity,
+                    'in', 'purchase_invoice', $invoice->id, "Restored Purchase Invoice #{$invoice->invoice_no}"
+                );
 
                 if ($item->po_item_id) {
                     $poItem = PurchaseOrderItem::find($item->po_item_id);
@@ -405,7 +423,10 @@ class PurchaseInvoiceController extends Controller
                 $order?->refreshStatus();
             }
 
-            Voucher::onlyTrashed()->where('reference', 'PI-' . $invoice->id)->restore();
+            Voucher::onlyTrashed()
+                ->where('reference_type', PurchaseInvoice::class)
+                ->where('reference_id', $invoice->id)
+                ->restore();
 
             DB::commit();
             return redirect()->back()->with('success', 'Invoice and stock restored successfully.');

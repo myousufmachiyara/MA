@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\HeadOfAccounts;
 use App\Models\SubHeadOfAccounts;
 use App\Models\ChartOfAccounts;
+use App\Models\Location;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\MeasurementUnit;
@@ -59,7 +60,7 @@ class DatabaseSeeder extends Seeder
             // User Management
             'user_roles',
             'users',
-            'mobile_users', // ← add
+            'mobile_users',
 
             // Accounts
             'coa',
@@ -72,13 +73,22 @@ class DatabaseSeeder extends Seeder
             'attributes',
 
             // Purchases
-            'purchase_orders', // ← add, alongside purchase_invoices
+            'purchase_orders',
             'purchase_invoices',
             'purchase_return',
 
             // Sales
+            'sale_orders',      // ← was missing — blocks Sale Order pages for everyone
+            'dispatch_trips',   // ← was missing — blocks Dispatch Trip pages for everyone
             'sale_invoices',
+            'settlements',      // ← was missing — blocks Settlement pages for everyone
             'sale_return',
+
+            // Stock
+            'stock_adjustments', // ← was missing — blocks Stock Adjustment pages for everyone
+            'stock_movements',   // ← needed for the Stock In/Out viewer's permission check
+            'locations',         // ← new, this request
+            'stock_transfer',    // ← new, this request
 
             // Vouchers
             'vouchers',
@@ -141,7 +151,6 @@ class DatabaseSeeder extends Seeder
             ['id' =>  9, 'hoa_id' => 4, 'name' => 'Other Income',       'created_at' => $now, 'updated_at' => $now],
 
             // Expenses (head 5)
-            // FIX: COGS gets its OWN sub-head, not grouped under 'Purchases'
             ['id' => 10, 'hoa_id' => 5, 'name' => 'Cost of Goods Sold', 'created_at' => $now, 'updated_at' => $now],
             ['id' => 11, 'hoa_id' => 5, 'name' => 'Salaries',          'created_at' => $now, 'updated_at' => $now],
             ['id' => 12, 'hoa_id' => 5, 'name' => 'Rent',              'created_at' => $now, 'updated_at' => $now],
@@ -151,27 +160,15 @@ class DatabaseSeeder extends Seeder
 
         // ─────────────────────────────────────────
         // CHART OF ACCOUNTS
-        //
-        // Code format: HHSsssNNN
-        //   HH  = head number (1 digit or 2)
-        //   Sss = sub-head sequential within that head
-        //   NNN = account sequence within sub-head
-        //
-        // Simplified readable format used below: HSSNNN
-        //   1 = Assets, 2 = Liabilities, 3 = Equity,
-        //   4 = Revenue, 5 = Expenses
         // ─────────────────────────────────────────
         $coaData = [
 
             // ── ASSETS ──────────────────────────────────────────────
-            // FIX: account_type='cash' (not 'asset') so cash book works
             ['id' =>  1, 'account_code' => '101001', 'shoa_id' =>  1, 'name' => 'Cash in Hand',         'account_type' => 'cash',      'receivables' => 0, 'payables' => 0],
             ['id' =>  2, 'account_code' => '102001', 'shoa_id' =>  2, 'name' => 'Main Bank Account',    'account_type' => 'bank',      'receivables' => 0, 'payables' => 0],
-            // FIX: account_type='inventory' (was 'asset') so controllers can find it
             ['id' =>  3, 'account_code' => '104001', 'shoa_id' =>  4, 'name' => 'Stock in Hand',        'account_type' => 'inventory', 'receivables' => 0, 'payables' => 0],
 
             // ── LIABILITIES ─────────────────────────────────────────
-            // (Vendors are created dynamically, but a control account is useful)
             ['id' =>  4, 'account_code' => '201001', 'shoa_id' =>  5, 'name' => 'Accounts Payable',     'account_type' => 'liability', 'receivables' => 0, 'payables' => 0],
             ['id' =>  5, 'account_code' => '202001', 'shoa_id' =>  6, 'name' => 'Loan Payable',         'account_type' => 'liability', 'receivables' => 0, 'payables' => 0],
 
@@ -181,17 +178,19 @@ class DatabaseSeeder extends Seeder
             ['id' =>  8, 'account_code' => '303001', 'shoa_id' =>  7, 'name' => 'Retained Earnings',    'account_type' => 'equity',    'receivables' => 0, 'payables' => 0],
 
             // ── REVENUE ─────────────────────────────────────────────
-            // FIX: code 401001, not 408001
             ['id' =>  9, 'account_code' => '401001', 'shoa_id' =>  8, 'name' => 'Sales Revenue',        'account_type' => 'revenue',   'receivables' => 0, 'payables' => 0],
             ['id' => 10, 'account_code' => '402001', 'shoa_id' =>  9, 'name' => 'Other Income',         'account_type' => 'revenue',   'receivables' => 0, 'payables' => 0],
 
             // ── EXPENSES ────────────────────────────────────────────
-            // FIX: COGS under its own sub-head (shoa_id=10), code 501001
             ['id' => 11, 'account_code' => '501001', 'shoa_id' => 10, 'name' => 'Cost of Goods Sold',   'account_type' => 'cogs',      'receivables' => 0, 'payables' => 0],
             ['id' => 12, 'account_code' => '502001', 'shoa_id' => 11, 'name' => 'Salaries Expense',     'account_type' => 'expenses',  'receivables' => 0, 'payables' => 0],
             ['id' => 13, 'account_code' => '503001', 'shoa_id' => 12, 'name' => 'Rent Expense',         'account_type' => 'expenses',  'receivables' => 0, 'payables' => 0],
             ['id' => 14, 'account_code' => '504001', 'shoa_id' => 13, 'name' => 'Utilities Expense',    'account_type' => 'expenses',  'receivables' => 0, 'payables' => 0],
             ['id' => 15, 'account_code' => '505001', 'shoa_id' => 14, 'name' => 'Miscellaneous Expense','account_type' => 'expenses',  'receivables' => 0, 'payables' => 0],
+
+            // ── ACCOUNTS ADDED FOR SALE MODULE (GST / WHT) ───────────
+            ['id' => 16, 'account_code' => '203001', 'shoa_id' =>  5, 'name' => 'GST Payable (Output Tax)', 'account_type' => 'liability',  'receivables' => 0, 'payables' => 0],
+            ['id' => 17, 'account_code' => '105001', 'shoa_id' =>  4, 'name' => 'WHT Receivable',           'account_type' => 'receivable', 'receivables' => 0, 'payables' => 0],
         ];
 
         foreach ($coaData as $data) {
@@ -213,5 +212,19 @@ class DatabaseSeeder extends Seeder
             ['id' => 4, 'name' => 'Bag',      'shortcode' => 'bag'],
             ['id' => 5, 'name' => 'Bundle',   'shortcode' => 'bundle'],
         ]);
+
+        // 🏬 Default Location — StockService falls back to this for every
+        // stock movement that doesn't specify a location explicitly.
+        Location::firstOrCreate(
+            ['code' => 'MAIN'],
+            [
+                'name'       => 'Main Warehouse',
+                'is_default' => true,
+                'is_active'  => true,
+                'created_by' => $userId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]
+        );
     }
 }

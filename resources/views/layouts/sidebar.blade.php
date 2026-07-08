@@ -26,18 +26,18 @@
           </li>
 
           {{-- User Management --}}
-          @if(auth()->user()->can('user_roles.index') || auth()->user()->can('users.index'))
+          @if(auth()->user()->can('user_roles.index') || auth()->user()->can('users.index') || auth()->user()->can('mobile_users.index'))
           <li class="nav-parent">
             <a class="nav-link" href="#"><i class="fa fa-user-shield"></i> <span>Users</span></a>
             <ul class="nav nav-children">
               @can('user_roles.index')
-              <li><a class="nav-link" href="{{ route('roles.index') }}">Roles & Permissions</a></li>
+              <li><a class="nav-link" href="{{ route('roles.index') }}">Roles &amp; Permissions</a></li>
               @endcan
               @can('users.index')
               <li><a class="nav-link" href="{{ route('users.index') }}">All Users</a></li>
               @endcan
               @can('mobile_users.index')
-                <li><a class="nav-link" href="{{ route('mobile_users.index') }}">Order Bookers</a></li>
+              <li><a class="nav-link" href="{{ route('mobile_users.index') }}">Order Bookers (Mobile)</a></li>
               @endcan
             </ul>
           </li>
@@ -59,7 +59,7 @@
           @endif
 
           {{-- Products --}}
-          @if(auth()->user()->can('product-categories.index') || auth()->user()->can('attributes.index') || auth()->user()->can('products.index'))
+          @if(auth()->user()->can('product_categories.index') || auth()->user()->can('product_subcategories.index') || auth()->user()->can('attributes.index') || auth()->user()->can('products.index'))
             <li class="nav-parent">
                 <a class="nav-link" href="#"><i class="fa fa-layer-group"></i> <span>Products</span></a>
                 <ul class="nav nav-children">
@@ -80,7 +80,7 @@
           @endif
 
           {{-- Stock Management --}}
-          @if(auth()->user()->can('locations.index') || auth()->user()->can('stock_transfer.index'))
+          @if(auth()->user()->can('locations.index') || auth()->user()->can('stock_transfer.index') || auth()->user()->can('stock_adjustments.index') || auth()->user()->can('stock_movements.index'))
           <li class="nav-parent">
             <a class="nav-link" href="#"><i class="fa fa-cubes"></i> <span>Stock Management</span></a>
             <ul class="nav nav-children">
@@ -88,14 +88,20 @@
                 <li><a class="nav-link" href="{{ route('locations.index') }}">Locations</a></li>
               @endcan
               @can('stock_transfer.index')
-                <li><a class="nav-link" href="{{ route('stock_transfer.index') }}">Stock In/Out</a></li>
+                <li><a class="nav-link" href="{{ route('stock_transfer.index') }}">Stock Transfer</a></li>
+              @endcan
+              @can('stock_adjustments.index')
+                <li><a class="nav-link" href="{{ route('stock_adjustments.index') }}">Stock Adjustments</a></li>
+              @endcan
+              @can('stock_movements.index')
+                <li><a class="nav-link" href="{{ route('stock_movements.index') }}">Stock In/Out</a></li>
               @endcan
             </ul>
           </li>
           @endif
 
-          {{-- Purchase Invoices --}}
-          @if(auth()->user()->can('purchase_invoices.index') || auth()->user()->can('purchase_invoices_1.index') || auth()->user()->can('purchase_return.index'))
+          {{-- Purchase --}}
+          @if(auth()->user()->can('purchase_orders.index') || auth()->user()->can('purchase_invoices.index') || auth()->user()->can('purchase_return.index'))
           <li class="nav-parent">
             <a class="nav-link" href="#"><i class="fa fa-shopping-cart"></i> <span>Purchase</span></a>
             <ul class="nav nav-children">
@@ -108,29 +114,34 @@
               @can('purchase_return.index')
               <li><a class="nav-link" href="{{ route('purchase_return.index') }}">Returns</a></li>
               @endcan
-
             </ul>
           </li>
           @endif
 
-          {{-- Sale Invoices --}}
-          @if(auth()->user()->can('sale_invoices.index') || auth()->user()->can('sale_return.index'))
+          {{-- Sale --}}
+          @if(auth()->user()->can('sale_orders.index') || auth()->user()->can('dispatch_trips.index') || auth()->user()->can('sale_invoices.index') || auth()->user()->can('settlements.index') || auth()->user()->can('sale_return.index'))
           <li class="nav-parent">
             <a class="nav-link" href="#"><i class="fa fa-cash-register"></i> <span>Sale</span></a>
             <ul class="nav nav-children">
               @can('sale_orders.index')
-              <li><a class="nav-link" href="{{ route('sale_orders.index') }}">Order</a></li>
+              <li><a class="nav-link" href="{{ route('sale_orders.index') }}">Booked Orders</a></li>
+              @endcan
+              @can('dispatch_trips.index')
+              <li><a class="nav-link" href="{{ route('dispatch_trips.index') }}">Dispatch Trips</a></li>
               @endcan
               @can('sale_invoices.index')
               <li><a class="nav-link" href="{{ route('sale_invoices.index') }}">Invoices</a></li>
               @endcan
+              @can('settlements.index')
+              <li><a class="nav-link" href="{{ route('settlements.index') }}">Settlements</a></li>
+              @endcan
               @can('sale_return.index')
-              <li><a class="nav-link" href="{{ route('sale_return.index') }}">Return</a></li>
+              <li><a class="nav-link" href="{{ route('sale_return.index') }}">Returns</a></li>
               @endcan
             </ul>
           </li>
           @endif
-          
+
           {{-- Vouchers --}}
           @if(auth()->user()->can('vouchers.index'))
             <li class="nav-parent">
@@ -154,9 +165,9 @@
 
           {{-- Reports --}}
           @if(
-            auth()->user()->can('reports.inventory') || 
-            auth()->user()->can('reports.purchase') || 
-            auth()->user()->can('reports.sales') || 
+            auth()->user()->can('reports.inventory') ||
+            auth()->user()->can('reports.purchase') ||
+            auth()->user()->can('reports.sales') ||
             auth()->user()->can('reports.accounts')
           )
           <li class="nav-parent">
@@ -166,7 +177,10 @@
             </a>
             <ul class="nav nav-children">
               @can('reports.inventory')
-                <li><a class="nav-link" href="{{ route('reports.inventory') }}">Inventory</a></li>
+                <li><a class="nav-link" href="{{ route('reports.inventory') }}">Stock in Hand</a></li>
+                <li><a class="nav-link" href="{{ route('reports.inventory.movement') }}">Stock Movement</a></li>
+                <li><a class="nav-link" href="{{ route('reports.inventory.itemLedger') }}">Item Ledger</a></li>
+                <li><a class="nav-link" href="{{ route('reports.inventory.byLocation') }}">Stock by Location</a></li>
               @endcan
               @can('reports.purchase')
                 <li><a class="nav-link" href="{{ route('reports.purchase') }}">Purchase</a></li>

@@ -49,6 +49,8 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/purchase-orders/{id}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase_orders.cancel');
     Route::get('/purchase-orders/{id}/items', [PurchaseOrderController::class, 'getItems'])->name('purchase_orders.items');
 
+    Route::put('/locations/{id}/toggle-active', [LocationController::class, 'toggleActive'])->name('locations.toggleActive');
+
     Route::put('/mobile-users/{id}/toggle-active', [MobileUserController::class, 'toggleActive'])->name('mobile_users.toggleActive');
     Route::put('/mobile-users/{id}/reset-device', [MobileUserController::class, 'resetDevice'])->name('mobile_users.resetDevice');
     Route::get('/mobile-users/{id}/activity', [MobileUserController::class, 'activity'])->name('mobile_users.activity');
@@ -79,6 +81,10 @@ Route::middleware(['auth'])->group(function () {
         // Sales
         'sale_invoices' => ['controller' => SaleInvoiceController::class, 'permission' => 'sale_invoices'],
         'sale_return' => ['controller' => SaleReturnController::class, 'permission' => 'sale_return'],
+
+        // Stock Management
+        'locations'      => ['controller' => LocationController::class, 'permission' => 'locations'],
+        'stock_transfer' => ['controller' => StockTransferController::class, 'permission' => 'stock_transfer'],
 
         // Vouchers
         'vouchers' => ['controller' => VoucherController::class, 'permission' => 'vouchers'],
