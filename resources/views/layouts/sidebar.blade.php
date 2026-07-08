@@ -177,10 +177,7 @@
             </a>
             <ul class="nav nav-children">
               @can('reports.inventory')
-                <li><a class="nav-link" href="{{ route('reports.inventory') }}">Stock in Hand</a></li>
-                <li><a class="nav-link" href="{{ route('reports.inventory.movement') }}">Stock Movement</a></li>
-                <li><a class="nav-link" href="{{ route('reports.inventory.itemLedger') }}">Item Ledger</a></li>
-                <li><a class="nav-link" href="{{ route('reports.inventory.byLocation') }}">Stock by Location</a></li>
+                <li><a class="nav-link" href="{{ route('reports.inventory') }}">Inventory</a></li>
               @endcan
               @can('reports.purchase')
                 <li><a class="nav-link" href="{{ route('reports.purchase') }}">Purchase</a></li>

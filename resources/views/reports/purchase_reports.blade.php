@@ -9,302 +9,82 @@
 </style>
 
 <div class="tabs">
-    <ul class="nav nav-tabs">
+
+    <ul class="nav nav-tabs" id="reportTabs" role="tablist">
         <li class="nav-item">
-            <a class="nav-link {{ $tab=='PUR' ? 'active' : '' }}" data-bs-toggle="tab" href="#PUR">Purchase Register</a>
+            <a class="nav-link active" id="purchase_register-tab" data-bs-toggle="tab" href="#purchase_register" role="tab">Purchase Register</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {{ $tab=='PR'  ? 'active' : '' }}" data-bs-toggle="tab" href="#PR">Purchase Returns</a>
+            <a class="nav-link" id="vendor_wise-tab" data-bs-toggle="tab" href="#vendor_wise" role="tab">Vendor-wise Purchase</a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {{ $tab=='VWP' ? 'active' : '' }}" data-bs-toggle="tab" href="#VWP">Vendor-wise Purchases</a>
+            <a class="nav-link" id="purchase_return-tab" data-bs-toggle="tab" href="#purchase_return" role="tab">Purchase Return</a>
         </li>
     </ul>
 
-    <div class="tab-content mt-3">
+    <div class="tab-content mt-3" id="reportTabsContent">
 
-        {{-- ── PURCHASE REGISTER ──────────────────────────────── --}}
-        <div id="PUR" class="tab-pane fade {{ $tab=='PUR' ? 'show active' : '' }}">
-            <form method="GET" action="{{ route('reports.purchase') }}" class="no-print">
-                <input type="hidden" name="tab" value="PUR">
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <label>From Date</label>
-                        <input type="date" name="from_date" class="form-control" value="{{ request('from_date', $from) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label>To Date</label>
-                        <input type="date" name="to_date" class="form-control" value="{{ request('to_date', $to) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label>Vendor</label>
-                        <select name="vendor_id" class="form-control">
-                            <option value="">-- All Vendors --</option>
-                            @foreach($vendors as $vendor)
-                                <option value="{{ $vendor->id }}" {{ request('vendor_id')==$vendor->id ? 'selected' : '' }}>
-                                    {{ $vendor->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                        <button type="button" class="btn btn-danger"
-                                onclick="exportPDF('pur-table', 'Purchase Register', '{{ request('from_date', $from) }} to {{ request('to_date', $to) }}')">
-                            <i class="fas fa-file-pdf"></i>
-                        </button>
-                    </div>
+        {{-- ══════════════════ TAB 1: PURCHASE REGISTER ══════════════════ --}}
+        <div class="tab-pane fade show active" id="purchase_register" role="tabpanel">
+            <form method="GET" action="{{ route('reports.purchase') }}" class="row g-2 mb-3 no-print">
+                <input type="hidden" name="tab" value="purchase_register">
+                <div class="col-md-2">
+                    <input type="date" name="from_date" value="{{ request('from_date', $from) }}" class="form-control">
                 </div>
-            </form>
-
-            @php
-                $grandTotal = $purchaseRegister->sum('total');
-                $grandQty   = $purchaseRegister->sum('quantity');
-            @endphp
-            <div class="mb-3 text-end no-print">
-                <h5>Total Qty: <span class="text-primary">{{ $grandQty }}</span></h5>
-                <h3>Total Purchase: <span class="text-danger">{{ number_format($grandTotal, 2) }}</span></h3>
-            </div>
-
-            <div id="pur-table">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th><th>Invoice No</th><th>Vendor</th><th>Item</th>
-                            <th class="text-end">Qty</th><th class="text-end">Rate</th>
-                            <th class="text-end">Total</th>
-                            <th class="no-print text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($purchaseRegister as $pur)
-                        <tr>
-                            <td>{{ $pur->date }}</td>
-                            <td>
-                                {{-- Clickable invoice number --}}
-                                <a href="{{ route('purchase_invoices.print', $pur->invoice_id) }}"
-                                   target="_blank" class="ref-link text-success">
-                                    PUR-{{ $pur->invoice_no }}
-                                </a>
-                            </td>
-                            <td>{{ $pur->vendor_name }}</td>
-                            <td>{{ $pur->item_name }}</td>
-                            <td class="text-end">{{ $pur->quantity }}</td>
-                            <td class="text-end">{{ number_format($pur->rate, 2) }}</td>
-                            <td class="text-end fw-bold">{{ number_format($pur->total, 2) }}</td>
-                            <td class="text-center no-print">
-                                <a href="{{ route('purchase_invoices.print', $pur->invoice_id) }}"
-                                   target="_blank" class="btn btn-outline-success btn-sm" title="Print">
-                                    <i class="fas fa-print"></i>
-                                </a>
-                                <a href="{{ route('purchase_invoices.edit', $pur->invoice_id) }}"
-                                   class="btn btn-outline-primary btn-sm ms-1" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="8" class="text-center text-muted">No purchase records found.</td></tr>
-                    @endforelse
-                    </tbody>
-                    @if(count($purchaseRegister))
-                    <tfoot class="table-light fw-bold">
-                        <tr>
-                            <td colspan="4" class="text-end">Grand Total</td>
-                            <td class="text-end">{{ $grandQty }}</td>
-                            <td class="text-end">—</td>
-                            <td class="text-end">{{ number_format($grandTotal, 2) }}</td>
-                            <td class="no-print"></td>
-                        </tr>
-                    </tfoot>
-                    @endif
-                </table>
-            </div>
-        </div>
-
-        {{-- ── PURCHASE RETURNS ────────────────────────────────── --}}
-        <div id="PR" class="tab-pane fade {{ $tab=='PR' ? 'show active' : '' }}">
-            <form method="GET" action="{{ route('reports.purchase') }}" class="no-print">
-                <input type="hidden" name="tab" value="PR">
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <label>From Date</label>
-                        <input type="date" name="from_date" class="form-control" value="{{ request('from_date', $from) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label>To Date</label>
-                        <input type="date" name="to_date" class="form-control" value="{{ request('to_date', $to) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label>Vendor</label>
-                        <select name="vendor_id" class="form-control">
-                            <option value="">-- All Vendors --</option>
-                            @foreach($vendors as $vendor)
-                                <option value="{{ $vendor->id }}" {{ request('vendor_id')==$vendor->id ? 'selected' : '' }}>
-                                    {{ $vendor->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                        <button type="button" class="btn btn-danger"
-                                onclick="exportPDF('pr-table', 'Purchase Returns', '{{ request('from_date', $from) }} to {{ request('to_date', $to) }}')">
-                            <i class="fas fa-file-pdf"></i>
-                        </button>
-                    </div>
+                <div class="col-md-2">
+                    <input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control">
                 </div>
-            </form>
-
-            @php
-                $returnTotal = $purchaseReturns->sum('total');
-                $returnQty   = $purchaseReturns->sum('quantity');
-            @endphp
-            <div class="mb-3 text-end no-print">
-                <h5>Total Qty Returned: <span class="text-warning">{{ $returnQty }}</span></h5>
-                <h3>Total Returns: <span class="text-danger">{{ number_format($returnTotal, 2) }}</span></h3>
-            </div>
-
-            <div id="pr-table">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th><th>Return No</th><th>Vendor</th><th>Item</th>
-                            <th class="text-end">Qty</th><th class="text-end">Rate</th>
-                            <th class="text-end">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($purchaseReturns as $pr)
-                        <tr>
-                            <td>{{ $pr->date }}</td>
-                            <td>PR-{{ $pr->return_id }}</td>
-                            <td>{{ $pr->vendor_name }}</td>
-                            <td>{{ $pr->item_name }}</td>
-                            <td class="text-end">{{ $pr->quantity }}</td>
-                            <td class="text-end">{{ number_format($pr->rate, 2) }}</td>
-                            <td class="text-end fw-bold">{{ number_format($pr->total, 2) }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="7" class="text-center text-muted">No purchase return records found.</td></tr>
-                    @endforelse
-                    </tbody>
-                    @if(count($purchaseReturns))
-                    <tfoot class="table-light fw-bold">
-                        <tr>
-                            <td colspan="4" class="text-end">Grand Total</td>
-                            <td class="text-end">{{ $returnQty }}</td>
-                            <td class="text-end">—</td>
-                            <td class="text-end">{{ number_format($returnTotal, 2) }}</td>
-                        </tr>
-                    </tfoot>
-                    @endif
-                </table>
-            </div>
-        </div>
-
-        {{-- ── VENDOR-WISE PURCHASE ─────────────────────────────── --}}
-        <div id="VWP" class="tab-pane fade {{ $tab=='VWP' ? 'show active' : '' }}">
-            <form method="GET" action="{{ route('reports.purchase') }}" class="no-print">
-                <input type="hidden" name="tab" value="VWP">
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <label>Vendor</label>
-                        <select name="vendor_id" class="form-control">
-                            <option value="">-- All Vendors --</option>
-                            @foreach($vendors as $vendor)
-                                <option value="{{ $vendor->id }}" {{ request('vendor_id')==$vendor->id ? 'selected' : '' }}>
-                                    {{ $vendor->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label>From Date</label>
-                        <input type="date" name="from_date" class="form-control" value="{{ request('from_date', $from) }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label>To Date</label>
-                        <input type="date" name="to_date" class="form-control" value="{{ request('to_date', $to) }}">
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end gap-2">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
-                        <button type="button" class="btn btn-danger"
-                                onclick="exportPDF('vwp-table', 'Vendor-wise Purchases', '{{ request('from_date', $from) }} to {{ request('to_date', $to) }}')">
-                            <i class="fas fa-file-pdf"></i>
-                        </button>
-                    </div>
-                </div>
-            </form>
-
-            <div class="mb-3 text-end no-print">
-                <h5>Total Qty: <span class="text-primary">{{ $vendorWisePurchase->sum('total_qty') }}</span></h5>
-                <h3>Total Purchases: <span class="text-success">{{ number_format($vendorWisePurchase->sum('total_amount'), 2) }}</span></h3>
-            </div>
-
-            <div id="vwp-table">
-                <table class="table table-bordered table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Vendor</th><th>Invoice Date</th><th>Invoice No</th>
-                            <th>Item</th><th>Variation</th>
-                            <th class="text-end">Qty</th><th class="text-end">Rate</th>
-                            <th class="text-end">Total</th>
-                            <th class="no-print text-center">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @forelse($vendorWisePurchase as $vendorData)
-                        <tr class="table-secondary">
-                            <td colspan="9"><strong>{{ $vendorData->vendor_name }}</strong></td>
-                        </tr>
-                        @foreach($vendorData->items as $item)
-                        <tr>
-                            <td></td>
-                            <td>{{ $item->invoice_date }}</td>
-                            <td>
-                                <a href="{{ route('purchase_invoices.print', $item->invoice_id ?? 0) }}"
-                                   target="_blank" class="ref-link text-success">
-                                    PUR-{{ $item->invoice_no }}
-                                </a>
-                            </td>
-                            <td>{{ $item->item_name }}</td>
-                            <td>{{ $item->variation }}</td>
-                            <td class="text-end">{{ $item->quantity }}</td>
-                            <td class="text-end">{{ number_format($item->rate, 2) }}</td>
-                            <td class="text-end fw-bold">{{ number_format($item->total, 2) }}</td>
-                            <td class="text-center no-print">
-                                @if(isset($item->invoice_id))
-                                <a href="{{ route('purchase_invoices.print', $item->invoice_id) }}"
-                                   target="_blank" class="btn btn-outline-success btn-sm" title="Print">
-                                    <i class="fas fa-print"></i>
-                                </a>
-                                <a href="{{ route('purchase_invoices.edit', $item->invoice_id) }}"
-                                   class="btn btn-outline-primary btn-sm ms-1" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                @endif
-                            </td>
-                        </tr>
+                <div class="col-md-3">
+                    <select name="vendor_id" class="form-control select2-js">
+                        <option value="">All Vendors</option>
+                        @foreach($vendors as $v)
+                            <option value="{{ $v->id }}" {{ request('vendor_id') == $v->id ? 'selected' : '' }}>{{ $v->name }}</option>
                         @endforeach
-                        <tr class="fw-bold table-light">
-                            <td colspan="5" class="text-end">Vendor Total</td>
-                            <td class="text-end">{{ $vendorData->total_qty }}</td>
-                            <td class="text-end">—</td>
-                            <td class="text-end">{{ number_format($vendorData->total_amount, 2) }}</td>
-                            <td class="no-print"></td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="9" class="text-center text-muted">No vendor purchase data found.</td></tr>
-                    @endforelse
-                    </tbody>
-                    @if(count($vendorWisePurchase))
-                    <tfoot class="table-dark fw-bold">
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('purchase_register', 'Purchase Register')">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                </div>
+            </form>
+
+            <div class="table-responsive" id="report-table-purchase_register">
+                <table class="table table-bordered table-striped align-middle table-sm">
+                    <thead class="table-dark">
                         <tr>
-                            <td colspan="5" class="text-end">Grand Total</td>
-                            <td class="text-end">{{ $vendorWisePurchase->sum('total_qty') }}</td>
-                            <td class="text-end">—</td>
-                            <td class="text-end">{{ number_format($vendorWisePurchase->sum('total_amount'), 2) }}</td>
+                            <th>Date</th><th>Invoice #</th><th>Vendor</th><th>Bill #</th>
+                            <th class="text-end">Items</th><th class="text-end">Qty</th><th class="text-end">Amount</th>
+                            <th class="no-print">Print</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($reports['purchase_register'] as $inv)
+                        <tr>
+                            <td>{{ \Carbon\Carbon::parse($inv->invoice_date)->format('d-M-Y') }}</td>
+                            <td>PUR-{{ $inv->invoice_no }}</td>
+                            <td>{{ $inv->vendor->name ?? 'N/A' }}</td>
+                            <td>{{ $inv->bill_no ?? '—' }}</td>
+                            <td class="text-end">{{ $inv->items->count() }}</td>
+                            <td class="text-end">{{ number_format($inv->total_quantity, 2) }}</td>
+                            <td class="text-end fw-bold">{{ number_format($inv->total_amount, 2) }}</td>
+                            <td class="no-print">
+                                <a href="{{ route('purchase_invoices.print', $inv->id) }}" target="_blank" class="ref-link"><i class="fas fa-print"></i></a>
+                            </td>
+                        </tr>
+                        @empty
+                            <tr><td colspan="8" class="text-center text-muted py-3">No purchase invoices found in this period.</td></tr>
+                        @endforelse
+                    </tbody>
+                    @if($reports['purchase_register']->count() > 0)
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="5" class="text-end">Total:</td>
+                            <td class="text-end">{{ number_format($reports['purchase_register']->sum('total_quantity'), 2) }}</td>
+                            <td class="text-end">{{ number_format($reports['purchase_register']->sum('total_amount'), 2) }}</td>
                             <td class="no-print"></td>
                         </tr>
                     </tfoot>
@@ -312,38 +92,119 @@
                 </table>
             </div>
         </div>
+
+        {{-- ══════════════════ TAB 2: VENDOR-WISE PURCHASE ══════════════════ --}}
+        <div class="tab-pane fade" id="vendor_wise" role="tabpanel">
+            <form method="GET" action="{{ route('reports.purchase') }}" class="row g-2 mb-3 no-print">
+                <input type="hidden" name="tab" value="vendor_wise">
+                <div class="col-md-2">
+                    <input type="date" name="from_date" value="{{ request('from_date', $from) }}" class="form-control">
+                </div>
+                <div class="col-md-2">
+                    <input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <select name="vendor_id" class="form-control select2-js">
+                        <option value="">All Vendors</option>
+                        @foreach($vendors as $v)
+                            <option value="{{ $v->id }}" {{ request('vendor_id') == $v->id ? 'selected' : '' }}>{{ $v->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('vendor_wise', 'Vendor-wise Purchase')">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                </div>
+            </form>
+
+            <div class="table-responsive" id="report-table-vendor_wise">
+                <table class="table table-bordered table-striped align-middle table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Vendor</th><th class="text-end">Invoices</th><th class="text-end">Total Qty</th>
+                            <th class="text-end">Total Amount</th><th class="no-print">Payables</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($reports['vendor_wise'] as $row)
+                        <tr>
+                            <td>{{ $row['vendor']->name }}</td>
+                            <td class="text-end">{{ $row['invoice_count'] }}</td>
+                            <td class="text-end">{{ number_format($row['total_quantity'], 2) }}</td>
+                            <td class="text-end fw-bold">{{ number_format($row['total_amount'], 2) }}</td>
+                            <td class="no-print">
+                                <a href="{{ route('reports.accounts', ['tab' => 'party_ledger', 'account_id' => $row['vendor']->id]) }}" class="ref-link" target="_blank">
+                                    View Ledger <i class="fas fa-external-link-alt"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        @empty
+                            <tr><td colspan="5" class="text-center text-muted py-3">No vendor purchase activity in this period.</td></tr>
+                        @endforelse
+                    </tbody>
+                    @if($reports['vendor_wise']->count() > 0)
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td class="text-end">Total:</td>
+                            <td class="text-end">{{ $reports['vendor_wise']->sum('invoice_count') }}</td>
+                            <td class="text-end">{{ number_format($reports['vendor_wise']->sum('total_quantity'), 2) }}</td>
+                            <td class="text-end">{{ number_format($reports['vendor_wise']->sum('total_amount'), 2) }}</td>
+                            <td class="no-print"></td>
+                        </tr>
+                    </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+
+        {{-- ══════════════════ TAB 3: PURCHASE RETURN (pending module) ══════════════════ --}}
+        <div class="tab-pane fade" id="purchase_return" role="tabpanel">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-1"></i>
+                Purchase Return report will populate once the Purchase Return module is finalized. Let's build that module next if you're ready.
+            </div>
+        </div>
+
     </div>
 </div>
 
 <script>
-function exportPDF(tableId, title, period) {
-    const el = document.getElementById(tableId);
-    if (!el) return;
-    const clone = el.cloneNode(true);
+function exportReportPDF(reportKey, reportLabel) {
+    const tableEl = document.getElementById('report-table-' + reportKey);
+    if (!tableEl) return;
+
+    const clone = tableEl.cloneNode(true);
     clone.querySelectorAll('.no-print').forEach(e => e.remove());
-    clone.querySelectorAll('a').forEach(a => {
-        const span = document.createElement('span');
-        span.textContent = a.textContent;
-        a.replaceWith(span);
-    });
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
-    <style>
-        body{font-family:Arial,sans-serif;font-size:11px;margin:20px}
-        h2{font-size:14px;margin-bottom:4px}p{font-size:10px;color:#555;margin:0 0 10px}
-        table{width:100%;border-collapse:collapse}
-        th{background:#1a1a2e;color:#fff;padding:5px 7px;text-align:left}
-        td{padding:4px 7px;border-bottom:0.5px solid #ddd}
-        tr:nth-child(even) td{background:#f9f9f9}
-        .text-end{text-align:right}.fw-bold{font-weight:bold}
-        tfoot td{background:#f0f0f0;font-weight:bold}
-    </style></head><body>
-    <h2>${title}</h2><p>${period}</p>
-    ${clone.innerHTML}
-    <script>window.onload=function(){window.print();}<\/script>
-    </body></html>`;
+    clone.querySelectorAll('a').forEach(a => a.replaceWith(document.createTextNode(a.textContent.trim())));
+
+    const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + reportLabel + '</title>'
+        + '<style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}'
+        + 'h2{font-size:14px;margin-bottom:10px}table{width:100%;border-collapse:collapse}'
+        + 'th{background:#1a1a2e;color:#fff;padding:5px 7px;text-align:left}'
+        + 'td{padding:4px 7px;border-bottom:0.5px solid #ddd}tr:nth-child(even) td{background:#f9f9f9}'
+        + 'tfoot td{background:#e9ecef;font-weight:bold}.text-end{text-align:right}.fw-bold{font-weight:bold}</style></head><body>'
+        + '<h2>' + reportLabel + '</h2>' + clone.innerHTML
+        + '<script>window.onload=function(){window.print();}<\/script></body></html>';
+
     const win = window.open('', '_blank', 'width=900,height=700');
     win.document.write(html);
     win.document.close();
 }
+
+document.addEventListener('DOMContentLoaded', function () {
+    $('.select2-js').select2({ width: '100%' });
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        let tab = urlParams.get('tab');
+        if (tab) {
+            const el = document.querySelector('.nav-link[href="#' + tab + '"]');
+            if (el && typeof bootstrap !== 'undefined') new bootstrap.Tab(el).show();
+        }
+    } catch (e) { console.error('Tab error', e); }
+});
 </script>
 @endsection

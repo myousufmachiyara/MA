@@ -2,265 +2,173 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Product;
-use Illuminate\Support\Facades\DB;
+use App\Models\ProductCategory;
+use App\Models\StockMovement;
+use App\Models\Location;
+use App\Models\LocationStock;
+use App\Services\StockService;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class InventoryReportController extends Controller
 {
     public function inventoryReports(Request $request)
     {
-        $tab     = $request->get('tab', 'IL');
-        $itemId  = $request->get('item_id');
-        $from    = $request->get('from_date', date('Y-m-01'));
-        $to      = $request->get('to_date', date('Y-m-d'));
+        $categories = ProductCategory::orderBy('name')->get();
+        $products   = Product::orderBy('name')->get(['id', 'name']);
+        $locations  = Location::where('is_active', true)->orderBy('name')->get();
 
-        $products    = Product::with('variations')->orderBy('name')->get();
-        $itemLedger  = collect();
-        $openingQty  = 0;
-        $stockInHand = collect();
+        $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
+        $to   = $request->to_date   ?? Carbon::now()->toDateString();
 
-        // ================================================================
-        // TAB 1 — ITEM LEDGER
-        // ================================================================
-        if ($tab === 'IL' && $itemId) {
+        $reports = [
+            'stock_in_hand'    => $this->stockInHand($request),
+            'stock_movement'   => $this->stockMovement($request, $from, $to),
+            'item_ledger'      => $this->itemLedger($request, $from, $to),
+            'stock_by_location'=> $this->stockByLocation($request),
+        ];
 
-            $opPurchased = DB::table('purchase_invoice_items')
-                ->join('purchase_invoices', 'purchase_invoice_items.purchase_invoice_id', '=', 'purchase_invoices.id')
-                ->where('purchase_invoice_items.item_id', $itemId)
-                ->whereNull('purchase_invoices.deleted_at')
-                ->where('purchase_invoices.invoice_date', '<', $from)
-                ->sum('purchase_invoice_items.quantity');
+        return view('reports.inventory_reports', compact('reports', 'categories', 'products', 'locations', 'from', 'to'));
+    }
 
-            $opSold = DB::table('sale_invoice_items')
-                ->join('sale_invoices', 'sale_invoice_items.sale_invoice_id', '=', 'sale_invoices.id')
-                ->where('sale_invoice_items.product_id', $itemId)
-                ->whereNull('sale_invoices.deleted_at')
-                ->where('sale_invoices.date', '<', $from)
-                ->sum('sale_invoice_items.quantity');
+    // ── TAB 1: STOCK IN HAND ─────────────────────────────────────
 
-            $opPurchaseReturned = DB::table('purchase_return_items')
-                ->join('purchase_returns', 'purchase_return_items.purchase_return_id', '=', 'purchase_returns.id')
-                ->where('purchase_return_items.item_id', $itemId)
-                ->where('purchase_returns.return_date', '<', $from)
-                ->sum('purchase_return_items.quantity');
+    private function stockInHand(Request $request)
+    {
+        $query = Product::with(['variations', 'category']);
 
-            $opSaleReturned = DB::table('sale_return_items')
-                ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
-                ->where('sale_return_items.product_id', $itemId)
-                ->where('sale_returns.return_date', '<', $from)
-                ->sum('sale_return_items.qty');
-
-            $openingQty = ((float)$opPurchased + (float)$opSaleReturned)
-                        - ((float)$opSold      + (float)$opPurchaseReturned);
-
-            $purchases = DB::table('purchase_invoice_items')
-                ->join('purchase_invoices', 'purchase_invoice_items.purchase_invoice_id', '=', 'purchase_invoices.id')
-                ->select(
-                    'purchase_invoices.invoice_date as date',
-                    DB::raw("'Purchase' as type"),
-                    DB::raw("CONCAT('PI-', purchase_invoices.invoice_no) as description"),
-                    'purchase_invoice_items.quantity as qty_in',
-                    DB::raw('0 as qty_out')
-                )
-                ->where('purchase_invoice_items.item_id', $itemId)
-                ->whereNull('purchase_invoices.deleted_at')
-                ->whereBetween('purchase_invoices.invoice_date', [$from, $to]);
-
-            $sales = DB::table('sale_invoice_items')
-                ->join('sale_invoices', 'sale_invoice_items.sale_invoice_id', '=', 'sale_invoices.id')
-                ->select(
-                    'sale_invoices.date as date',
-                    DB::raw("'Sale' as type"),
-                    DB::raw("CONCAT('SI-', sale_invoices.invoice_no) as description"),
-                    DB::raw('0 as qty_in'),
-                    'sale_invoice_items.quantity as qty_out'
-                )
-                ->where('sale_invoice_items.product_id', $itemId)
-                ->whereNull('sale_invoices.deleted_at')
-                ->whereBetween('sale_invoices.date', [$from, $to]);
-
-            $purchaseReturns = DB::table('purchase_return_items')
-                ->join('purchase_returns', 'purchase_return_items.purchase_return_id', '=', 'purchase_returns.id')
-                ->select(
-                    'purchase_returns.return_date as date',
-                    DB::raw("'Purchase Return' as type"),
-                    DB::raw("CONCAT('PR-', purchase_returns.id) as description"),
-                    DB::raw('0 as qty_in'),
-                    'purchase_return_items.quantity as qty_out'
-                )
-                ->where('purchase_return_items.item_id', $itemId)
-                ->whereBetween('purchase_returns.return_date', [$from, $to]);
-
-            $saleReturns = DB::table('sale_return_items')
-                ->join('sale_returns', 'sale_return_items.sale_return_id', '=', 'sale_returns.id')
-                ->select(
-                    'sale_returns.return_date as date',
-                    DB::raw("'Sale Return' as type"),
-                    DB::raw("CONCAT('SR-', sale_returns.id) as description"),
-                    'sale_return_items.qty as qty_in',
-                    DB::raw('0 as qty_out')
-                )
-                ->where('sale_return_items.product_id', $itemId)
-                ->whereBetween('sale_returns.return_date', [$from, $to]);
-
-            $itemLedger = $purchases
-                ->union($sales)
-                ->union($purchaseReturns)
-                ->union($saleReturns)
-                ->orderBy('date', 'asc')
-                ->get()
-                ->map(fn($row) => (array) $row);
+        if ($request->filled('category_id')) {
+            $query->where('category_id', $request->category_id);
+        }
+        if ($request->filled('search')) {
+            $query->where('name', 'like', "%{$request->search}%");
         }
 
-        // ================================================================
-        // TAB 2 — STOCK IN HAND
-        //
-        // ROOT CAUSE OF BUG:
-        //   The previous query did INNER JOIN on product_variations.
-        //   A product purchased with variation_id = null has NO rows in
-        //   product_variations, so the inner join returned 0 rows → empty.
-        //
-        // FIX:
-        //   Query at the product level, not the variation level.
-        //   - Products with NO variations: one row, stock = all purchases.
-        //   - Products WITH variations: one row per variation, PLUS a
-        //     catch-all "No Variation" row for any purchases/sales where
-        //     variation_id was left null.
-        // ================================================================
-        if ($tab === 'SR') {
+        $products = $query->orderBy('name')->get();
+        $rows     = collect();
 
-            $productQuery = Product::with('variations')
-                ->leftJoin('measurement_units', 'measurement_units.id', '=', 'products.measurement_unit')
-                ->select('products.*', 'measurement_units.shortcode as unit_shortcode')
-                ->orderBy('products.name');
-
-            if ($itemId) {
-                $productQuery->where('products.id', $itemId);
-            }
-
-            $productRows = $productQuery->get();
-
-            foreach ($productRows as $product) {
-
-                $hasVariations = $product->variations->isNotEmpty();
-
-                if (!$hasVariations) {
-
-                    // ── No variations: sum ALL rows for this product ───
-                    $purchased = (float) DB::table('purchase_invoice_items')
-                        ->join('purchase_invoices', 'purchase_invoice_items.purchase_invoice_id', '=', 'purchase_invoices.id')
-                        ->where('purchase_invoice_items.item_id', $product->id)
-                        ->whereNull('purchase_invoices.deleted_at')
-                        ->sum('purchase_invoice_items.quantity');
-
-                    $sold = (float) DB::table('sale_invoice_items')
-                        ->join('sale_invoices', 'sale_invoice_items.sale_invoice_id', '=', 'sale_invoices.id')
-                        ->where('sale_invoice_items.product_id', $product->id)
-                        ->whereNull('sale_invoices.deleted_at')
-                        ->sum('sale_invoice_items.quantity');
-
-                    $purchaseReturned = (float) DB::table('purchase_return_items')
-                        ->where('item_id', $product->id)
-                        ->sum('quantity');
-
-                    $saleReturned = (float) DB::table('sale_return_items')
-                        ->where('product_id', $product->id)
-                        ->sum('qty');
-
-                    $qty = ($purchased + $saleReturned) - ($sold + $purchaseReturned);
-
-                    if ($qty > 0) {
-                        $stockInHand->push([
-                            'product'   => $product->name,
-                            'variation' => '—',
-                            'quantity'  => $qty,
-                            'unit'      => $product->unit_shortcode ?? '',
-                        ]);
+        foreach ($products as $product) {
+            if ($product->variations->count() > 0) {
+                foreach ($product->variations as $v) {
+                    if ($request->filled('stock_status')) {
+                        if ($request->stock_status === 'zero' && $v->stock_quantity > 0) continue;
+                        if ($request->stock_status === 'low' && ($v->stock_quantity <= 0 || $v->stock_quantity > 10)) continue;
                     }
-
-                } else {
-
-                    // ── Has variations ─────────────────────────────────
-
-                    // Catch-all row: purchases/sales where variation_id is null
-                    $nullQtyIn = (float) DB::table('purchase_invoice_items')
-                        ->join('purchase_invoices', 'purchase_invoice_items.purchase_invoice_id', '=', 'purchase_invoices.id')
-                        ->where('purchase_invoice_items.item_id', $product->id)
-                        ->whereNull('purchase_invoice_items.variation_id')
-                        ->whereNull('purchase_invoices.deleted_at')
-                        ->sum('purchase_invoice_items.quantity');
-
-                    $nullQtyOut = (float) DB::table('sale_invoice_items')
-                        ->join('sale_invoices', 'sale_invoice_items.sale_invoice_id', '=', 'sale_invoices.id')
-                        ->where('sale_invoice_items.product_id', $product->id)
-                        ->whereNull('sale_invoice_items.variation_id')
-                        ->whereNull('sale_invoices.deleted_at')
-                        ->sum('sale_invoice_items.quantity');
-
-                    $nullPR = (float) DB::table('purchase_return_items')
-                        ->where('item_id', $product->id)->whereNull('variation_id')->sum('quantity');
-
-                    $nullSR = (float) DB::table('sale_return_items')
-                        ->where('product_id', $product->id)->whereNull('variation_id')->sum('qty');
-
-                    $nullQty = ($nullQtyIn + $nullSR) - ($nullQtyOut + $nullPR);
-
-                    if ($nullQty > 0) {
-                        $stockInHand->push([
-                            'product'   => $product->name,
-                            'variation' => 'No Variation',
-                            'quantity'  => $nullQty,
-                            'unit'      => $product->unit_shortcode ?? '',
-                        ]);
-                    }
-
-                    // One row per variation
-                    foreach ($product->variations as $v) {
-
-                        $vPurchased = (float) DB::table('purchase_invoice_items')
-                            ->join('purchase_invoices', 'purchase_invoice_items.purchase_invoice_id', '=', 'purchase_invoices.id')
-                            ->where('purchase_invoice_items.item_id', $product->id)
-                            ->where('purchase_invoice_items.variation_id', $v->id)
-                            ->whereNull('purchase_invoices.deleted_at')
-                            ->sum('purchase_invoice_items.quantity');
-
-                        $vSold = (float) DB::table('sale_invoice_items')
-                            ->join('sale_invoices', 'sale_invoice_items.sale_invoice_id', '=', 'sale_invoices.id')
-                            ->where('sale_invoice_items.product_id', $product->id)
-                            ->where('sale_invoice_items.variation_id', $v->id)
-                            ->whereNull('sale_invoices.deleted_at')
-                            ->sum('sale_invoice_items.quantity');
-
-                        $vPR = (float) DB::table('purchase_return_items')
-                            ->where('item_id', $product->id)->where('variation_id', $v->id)->sum('quantity');
-
-                        $vSR = (float) DB::table('sale_return_items')
-                            ->where('product_id', $product->id)->where('variation_id', $v->id)->sum('qty');
-
-                        $vQty = ($vPurchased + $vSR) - ($vSold + $vPR);
-
-                        if ($vQty > 0) {
-                            $stockInHand->push([
-                                'product'   => $product->name,
-                                'variation' => $v->sku ?? $v->name ?? '—',
-                                'quantity'  => $vQty,
-                                'unit'      => $product->unit_shortcode ?? '',
-                            ]);
-                        }
-                    }
+                    $rows->push([
+                        'item'       => $product->name,
+                        'category'   => $product->category->name ?? '—',
+                        'variation'  => $v->sku,
+                        'quantity'   => $v->stock_quantity,
+                        'cost_price' => $v->cost_price,
+                        'value'      => $v->stock_quantity * $v->cost_price,
+                        'link'       => route('stock_movements.show', ['itemId' => $product->id, 'variation_id' => $v->id]),
+                    ]);
                 }
+            } else {
+                $stock = StockService::currentStock($product->id, null);
+                if ($request->filled('stock_status')) {
+                    if ($request->stock_status === 'zero' && $stock > 0) continue;
+                    if ($request->stock_status === 'low' && ($stock <= 0 || $stock > 10)) continue;
+                }
+                $rows->push([
+                    'item'       => $product->name,
+                    'category'   => $product->category->name ?? '—',
+                    'variation'  => '—',
+                    'quantity'   => $stock,
+                    'cost_price' => $product->cost_price,
+                    'value'      => $stock * $product->cost_price,
+                    'link'       => route('stock_movements.show', $product->id),
+                ]);
             }
         }
 
-        return view('reports.inventory_reports', compact(
-            'products',
-            'itemLedger',
-            'openingQty',
-            'stockInHand',
-            'tab',
-            'from',
-            'to'
-        ));
+        return $rows;
+    }
+
+    // ── TAB 2: STOCK MOVEMENT ────────────────────────────────────
+
+    private function stockMovement(Request $request, string $from, string $to)
+    {
+        $query = StockMovement::with(['product', 'variation', 'location', 'creator'])->orderByDesc('created_at');
+
+        if ($request->filled('item_id')) {
+            $query->where('item_id', $request->item_id);
+        }
+        if ($request->filled('direction')) {
+            $query->where('direction', $request->direction);
+        }
+        if ($request->filled('reference_type')) {
+            $query->where('reference_type', $request->reference_type);
+        }
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+        $query->whereDate('created_at', '>=', $from)->whereDate('created_at', '<=', $to);
+
+        return $query->paginate(50)->withQueryString();
+    }
+
+    // ── TAB 3: ITEM LEDGER (opening/closing balance for one item) ──
+
+    private function itemLedger(Request $request, string $from, string $to)
+    {
+        if (!$request->filled('ledger_item_id')) {
+            return null;
+        }
+
+        $itemId      = $request->ledger_item_id;
+        $variationId = $request->filled('ledger_variation_id') ? $request->ledger_variation_id : null;
+
+        $product = Product::with('variations')->find($itemId);
+        if (!$product) return null;
+
+        // Variable product with no variation chosen yet — signal the view to show a picker
+        if ($product->variations->count() > 0 && !$variationId) {
+            return ['needs_variation' => true, 'product' => $product];
+        }
+
+        $baseQuery = StockMovement::where('item_id', $itemId);
+        $variationId ? $baseQuery->where('variation_id', $variationId) : $baseQuery->whereNull('variation_id');
+
+        $priorLast = (clone $baseQuery)
+            ->where('created_at', '<', $from)
+            ->orderByDesc('created_at')->orderByDesc('id')->first();
+        $opening = $priorLast->balance_after ?? 0;
+
+        $movements = (clone $baseQuery)
+            ->with('creator', 'location')
+            ->whereDate('created_at', '>=', $from)
+            ->whereDate('created_at', '<=', $to)
+            ->orderBy('created_at')->orderBy('id')
+            ->get();
+
+        $closing   = $movements->last()->balance_after ?? $opening;
+        $variation = $variationId ? $product->variations->find($variationId) : null;
+
+        return [
+            'needs_variation' => false,
+            'product'         => $product,
+            'variation'       => $variation,
+            'opening'         => $opening,
+            'closing'         => $closing,
+            'movements'       => $movements,
+        ];
+    }
+
+    // ── TAB 4: STOCK BY LOCATION ─────────────────────────────────
+
+    private function stockByLocation(Request $request)
+    {
+        $query = LocationStock::with(['product', 'variation', 'location'])->where('quantity', '!=', 0);
+
+        if ($request->filled('location_id')) {
+            $query->where('location_id', $request->location_id);
+        }
+        if ($request->filled('search')) {
+            $query->whereHas('product', fn ($q) => $q->where('name', 'like', "%{$request->search}%"));
+        }
+
+        return $query->orderBy('location_id')->get();
     }
 }

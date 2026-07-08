@@ -259,12 +259,7 @@ Route::middleware(['auth'])->group(function () {
     // Reports (readonly)
     // ─────────────────────────────────────────────────────────────
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('inventory', [InventoryReportController::class, 'inventoryReports'])->name('inventory');
-        Route::get('inventory/movement', [InventoryReportController::class, 'stockMovement'])->name('inventory.movement');
-        Route::get('inventory/item-ledger', [InventoryReportController::class, 'itemLedger'])->name('inventory.itemLedger');
-        Route::get('inventory/item-ledger/{itemId}', [InventoryReportController::class, 'itemLedgerDetail'])->name('inventory.itemLedgerDetail');
-        Route::get('inventory/by-location', [InventoryReportController::class, 'stockByLocation'])->name('inventory.byLocation');
-
+        Route::get('inventory', [InventoryReportController::class, 'inventoryReports'])->name('inventory');        
         Route::get('purchase', [PurchaseReportController::class, 'purchaseReports'])->name('purchase');
         Route::get('sale', [SalesReportController::class, 'saleReports'])->name('sale');
         Route::get('accounts', [AccountsReportController::class, 'accounts'])->name('accounts');

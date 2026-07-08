@@ -59,6 +59,12 @@ class ChartOfAccounts extends Model
         return $this->hasMany(PurchaseInvoice::class, 'vendor_id');
     }
 
+    // app/Models/ChartOfAccounts.php
+    public function saleInvoices()
+    {
+        return $this->hasMany(SaleInvoice::class, 'customer_id');
+    }
+
     // A delivery-manager clearing account (or any user-linked account) belongs to a User
     public function linkedUser()
     {

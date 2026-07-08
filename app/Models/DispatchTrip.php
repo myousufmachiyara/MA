@@ -27,6 +27,6 @@ class DispatchTrip extends Model
 
     public function invoices()
     {
-        return $this->hasMany(SaleInvoice::class);
+        return $this->hasMany(SaleInvoice::class, 'dispatch_trip_id');
     }
 }
