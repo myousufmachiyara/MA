@@ -19,7 +19,10 @@ class VoucherController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $accounts = ChartOfAccounts::all();
+        $accounts = ChartOfAccounts::where('is_active', true)
+        ->where('is_system_account', false)
+        ->orderBy('account_code')
+        ->get();
 
         return view('vouchers.index', [
             'vouchers' => $vouchers,
@@ -30,7 +33,10 @@ class VoucherController extends Controller
 
     public function create($type)
     {
-        $accounts = ChartOfAccounts::all();
+        $accounts = ChartOfAccounts::where('is_active', true)
+        ->where('is_system_account', false)
+        ->orderBy('account_code')
+        ->get();
         return view('vouchers.create', compact('accounts', 'type'));
     }
 
