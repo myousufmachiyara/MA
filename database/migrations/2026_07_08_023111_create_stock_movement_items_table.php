@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('variation_id')->nullable();
             $table->enum('direction', ['increase', 'decrease']);
             $table->decimal('quantity', 15, 2);
-            $table->decimal('unit_cost', 15, 2)->default(0); // for valuing the voucher entry
+            $table->decimal('unit_cost', 15, 2)->default(0);
             $table->decimal('stock_before', 15, 2)->default(0);
             $table->decimal('stock_after', 15, 2)->default(0);
             $table->string('remarks')->nullable();
