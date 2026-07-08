@@ -46,6 +46,8 @@ Route::middleware(['auth'])->group(function () {
 
     //Purchase Helper
     Route::get('/product/{product}/invoices', [PurchaseInvoiceController::class, 'getProductInvoices']);
+    Route::put('/purchase-orders/{id}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase_orders.cancel');
+    Route::get('/purchase-orders/{id}/items', [PurchaseOrderController::class, 'getItems'])->name('purchase_orders.items');
 
     Route::put('/mobile-users/{id}/toggle-active', [MobileUserController::class, 'toggleActive'])->name('mobile_users.toggleActive');
     Route::put('/mobile-users/{id}/reset-device', [MobileUserController::class, 'resetDevice'])->name('mobile_users.resetDevice');
