@@ -72,6 +72,7 @@ class DatabaseSeeder extends Seeder
             'attributes',
 
             // Purchases
+            'purchase_orders', // ← add, alongside purchase_invoices
             'purchase_invoices',
             'purchase_return',
 

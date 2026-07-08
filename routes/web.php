@@ -8,10 +8,12 @@ use App\Http\Controllers\{
     SubHeadOfAccController,
     COAController,
     SaleInvoiceController,
+    PurchaseOrderController,
     PurchaseInvoiceController,
     PurchaseReturnController,
     ProductController,
     UserController,
+    MobileUserController,
     RoleController,
     AttributeController,
     ProductCategoryController,
@@ -23,7 +25,6 @@ use App\Http\Controllers\{
     SaleReturnController,
     PermissionController,
     ProductSubcategoryController,
-    MobileUserController,
 };
 
 Auth::routes();
@@ -69,6 +70,7 @@ Route::middleware(['auth'])->group(function () {
         'attributes' => ['controller' => AttributeController::class, 'permission' => 'attributes'],
 
         // Purchases
+        'purchase_orders' => ['controller' => PurchaseOrderController::class, 'permission' => 'purchase_orders'],
         'purchase_invoices' => ['controller' => PurchaseInvoiceController::class, 'permission' => 'purchase_invoices'],
         'purchase_return' => ['controller' => PurchaseReturnController::class, 'permission' => 'purchase_return'],
 

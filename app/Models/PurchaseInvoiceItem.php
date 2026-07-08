@@ -1,4 +1,5 @@
 <?php
+// app/Models/PurchaseInvoiceItem.php — replace with this version
 
 namespace App\Models;
 
@@ -7,13 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class PurchaseInvoiceItem extends Model
 {
     protected $fillable = [
-        'purchase_invoice_id',
-        'item_id',
-        'variation_id',
-        'quantity',
-        'unit',
-        'price',
-        'remarks',        
+        'purchase_invoice_id', 'item_id', 'variation_id', 'po_item_id',
+        'quantity', 'unit', 'price', 'remarks',
     ];
 
     public function invoice()
@@ -30,7 +26,12 @@ class PurchaseInvoiceItem extends Model
     {
         return $this->belongsTo(ProductVariation::class, 'variation_id');
     }
-    
+
+    public function poItem()
+    {
+        return $this->belongsTo(PurchaseOrderItem::class, 'po_item_id');
+    }
+
     public function measurementUnit()
     {
         return $this->belongsTo(MeasurementUnit::class, 'unit');

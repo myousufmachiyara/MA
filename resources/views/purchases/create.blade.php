@@ -32,6 +32,17 @@
             </div>
 
             <div class="col-md-2 mb-3">
+              <label>From Purchase Order <small class="text-muted">(optional)</small></label>
+              <select id="po_selector" class="form-control select2-js" onchange="loadFromPO(this.value)">
+                <option value="">— None —</option>
+                @foreach ($openOrders as $po)
+                  <option value="{{ $po->id }}">PO-{{ $po->order_no }}</option>
+                @endforeach
+              </select>
+              <input type="hidden" name="purchase_order_id" id="purchase_order_id">
+            </div>
+
+            <div class="col-md-2 mb-3">
               <label>Bill #</label>
               <input type="text" name="bill_no" class="form-control">
             </div>
@@ -140,8 +151,16 @@
   var index = 2;
 
   $(document).ready(function () {
-    $('.select2-js').select2({ width: '100%', dropdownAutoWidth: true });
-    updateSerialNumbers();
+      $('.select2-js').select2({ width: '100%', dropdownAutoWidth: true });
+      updateSerialNumbers();
+
+      // FIX: 'params' must be declared before use
+      const params = new URLSearchParams(window.location.search);
+      const poId = params.get('po_id');
+      if (poId) {
+          $('#po_selector').val(poId).trigger('change');
+          loadFromPO(poId);
+      }
   });
 
   function updateSerialNumbers() {
@@ -295,7 +314,57 @@
     } else {
         variationSelect.html('<option value="">Select Variation</option>').trigger('change.select2');
     }
-  } 
+  }
+
+  function loadFromPO(poId) {
+    if (!poId) return;
+
+    fetch(`/purchase-orders/${poId}/items`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) { alert(data.message || 'Could not load order items.'); return; }
+
+            $('#purchase_order_id').val(poId);
+            $('select[name="vendor_id"]').val(data.vendor_id).trigger('change');
+
+            $('#Purchase1Table').empty();
+            index = 1;
+
+            data.items.forEach((item, i) => {
+                const rowIndex = i;
+                const rowNum = i + 1;
+                let row = `
+                  <tr>
+                    <td class="serial-no">${rowNum}</td>
+                    <td>
+                      <select name="items[${rowIndex}][item_id]" class="form-control select2-js" disabled>
+                        <option value="${item.item_id}" selected>${item.item_name}</option>
+                      </select>
+                      <input type="hidden" name="items[${rowIndex}][item_id]" value="${item.item_id}">
+                      <input type="hidden" name="items[${rowIndex}][po_item_id]" value="${item.po_item_id}">
+                    </td>
+                    <td>${item.variation_sku ?? '—'}
+                      <input type="hidden" name="items[${rowIndex}][variation_id]" value="${item.variation_id ?? ''}">
+                    </td>
+                    <td><input type="number" name="items[${rowIndex}][quantity]" id="pur_qty${rowNum}" class="form-control quantity" value="${item.remaining_qty}" step="any" onchange="rowTotal(${rowNum})"></td>
+                    <td>
+                      <select name="items[${rowIndex}][unit]" class="form-control" disabled>
+                        <option value="${item.unit}" selected>Unit</option>
+                      </select>
+                      <input type="hidden" name="items[${rowIndex}][unit]" value="${item.unit}">
+                    </td>
+                    <td><input type="number" name="items[${rowIndex}][price]" id="pur_price${rowNum}" class="form-control" value="${item.price}" step="any" onchange="rowTotal(${rowNum})"></td>
+                    <td><input type="number" id="amount${rowNum}" class="form-control" value="${(item.remaining_qty * item.price).toFixed(2)}" step="any" disabled></td>
+                    <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>
+                  </tr>`;
+                $('#Purchase1Table').append(row);
+                index++;
+            });
+
+            tableTotal();
+        })
+        .catch(() => alert('Error loading order items.'));
+  }
 </script>
 
 @endsection

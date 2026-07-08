@@ -74,15 +74,16 @@
                       @foreach ($products as $product)
                         <option value="{{ $product->id }}" 
                                 data-unit-id="{{ $product->measurement_unit }}"
-                                {{ $item->product_id == $product->id ? 'selected' : '' }}>
+                                {{ $item->item_id == $product->id ? 'selected' : '' }}>
                           {{ $product->name }}
                         </option>
                       @endforeach
                     </select>
+                    {{-- FIX: preserve PO link so update() can re-sync received_quantity --}}
+                    <input type="hidden" name="items[{{ $key }}][po_item_id]" value="{{ $item->po_item_id }}">
                   </td>
                   <td>
                     <select name="items[{{ $key }}][variation_id]" id="variation{{ $key + 1 }}" class="form-control select2-js">
-                        {{-- Always include a blank option first --}}
                         <option value="">No Variation</option>
                         @foreach($item->product->variations as $v)
                             <option value="{{ $v->id }}" {{ $item->variation_id == $v->id ? 'selected' : '' }}>
@@ -95,7 +96,8 @@
                   <td>
                     <select name="items[{{ $key }}][unit]" class="form-control">
                       @foreach ($units as $unit)
-                        <option value="{{ $unit->id }}" {{ $item->unit_id == $unit->id ? 'selected' : '' }}>{{ $unit->name }}</option>
+                        {{-- FIX: was comparing $item->unit_id (doesn't exist), now $item->unit --}}
+                        <option value="{{ $unit->id }}" {{ $item->unit == $unit->id ? 'selected' : '' }}>{{ $unit->name }}</option>
                       @endforeach
                     </select>
                   </td>
