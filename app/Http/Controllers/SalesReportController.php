@@ -25,7 +25,7 @@ class SalesReportController extends Controller
             'customer_wise'   => $this->customerWise($request, $from, $to),
         ];
 
-        return view('reports.sale_reports', compact('reports', 'customers', 'from', 'to'));
+        return view('reports.sales_reports', compact('reports', 'customers', 'from', 'to'));
     }
 
     // ── TAB 1: SALE REGISTER ─────────────────────────────────────
