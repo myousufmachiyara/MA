@@ -321,4 +321,4 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (e) { console.error('Tab error', e); }
 });
 </script>
-@endsectiond
+@endsection
