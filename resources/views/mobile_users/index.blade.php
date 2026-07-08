@@ -124,6 +124,13 @@
               <input type="text" name="phone" class="form-control" placeholder="03XXXXXXXXX" required>
             </div>
             <div class="mb-2">
+              <label>Role <span class="text-danger">*</span></label>
+              <select name="mobile_role" class="form-control" required>
+                <option value="booker">Order Booker</option>
+                <option value="delivery_manager">Delivery Manager</option>
+              </select>
+            </div>
+            <div class="mb-2">
               <label>Username <small class="text-muted">(optional — defaults to phone)</small></label>
               <input type="text" name="username" class="form-control">
             </div>
@@ -174,6 +181,13 @@
               <input type="text" name="phone" id="edit_phone" class="form-control" required>
             </div>
             <div class="mb-2">
+              <label>Role <span class="text-danger">*</span></label>
+              <select name="mobile_role" id="edit_mobile_role" class="form-control" required>
+                <option value="booker">Order Booker</option>
+                <option value="delivery_manager">Delivery Manager</option>
+              </select>
+            </div>
+            <div class="mb-2">
               <label>Employee Code</label>
               <input type="text" name="employee_code" id="edit_employee_code" class="form-control">
             </div>
@@ -213,6 +227,7 @@ function openEditModal(id) {
         document.getElementById('edit_employee_code').value = u.employee_code ?? '';
         document.getElementById('edit_assigned_area').value = u.assigned_area ?? '';
         document.getElementById('edit_cnic').value = u.cnic ?? '';
+        document.getElementById('edit_mobile_role').value = u.mobile_role ?? 'booker';
 
         $.magnificPopup.open({ items: { src: '#editModal' }, type: 'inline' });
     })

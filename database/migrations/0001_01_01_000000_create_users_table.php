@@ -21,6 +21,7 @@ return new class extends Migration
 
             // ── Web vs Mobile (order booker) distinction ────────────
             $table->enum('user_type', ['web', 'mobile'])->default('web');
+            $table->enum('mobile_role', ['booker', 'delivery_manager'])->nullable()->
 
             // ── Mobile / booker identity ─────────────────────────────
             $table->string('phone', 20)->nullable()->unique();

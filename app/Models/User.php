@@ -15,7 +15,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'username', 'email', 'password',
-        'user_type', 'phone', 'cnic', 'employee_code', 'assigned_area',
+        'user_type', 'mobile_role', 'phone', 'cnic', 'employee_code', 'assigned_area',
         'device_id', 'fcm_token', 'app_version',
         'is_active', 'profile_photo',
         'created_by', 'updated_by',

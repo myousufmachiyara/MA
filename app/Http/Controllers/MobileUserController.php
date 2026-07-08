@@ -19,6 +19,10 @@ class MobileUserController extends Controller
             $query->where('is_active', $request->status === 'active');
         }
 
+        if ($request->filled('mobile_role') && $request->mobile_role !== 'all') {
+            $query->where('mobile_role', $request->mobile_role);
+        }
+
         $bookers = $query->latest()->get();
 
         return view('mobile_users.index', compact('bookers'));
@@ -32,6 +36,7 @@ class MobileUserController extends Controller
                 'phone'         => 'required|string|unique:users,phone',
                 'username'      => 'nullable|string|unique:users,username',
                 'password'      => 'required|string|min:6|confirmed',
+                'mobile_role'   => 'nullable|in:booker,delivery_manager',
                 'employee_code' => 'nullable|string|max:50',
                 'assigned_area' => 'nullable|string|max:150',
                 'cnic'          => 'nullable|string|max:20',
@@ -42,6 +47,7 @@ class MobileUserController extends Controller
                 'phone'         => $validated['phone'],
                 'username'      => $validated['username'] ?: $validated['phone'],
                 'password'      => Hash::make($validated['password']),
+                'mobile_role'   => $validated['mobile_role'] ?? 'booker',
                 'employee_code' => $validated['employee_code'] ?? null,
                 'assigned_area' => $validated['assigned_area'] ?? null,
                 'cnic'          => $validated['cnic'] ?? null,
@@ -51,7 +57,7 @@ class MobileUserController extends Controller
                 'updated_by'    => auth()->id(),
             ]);
 
-            Log::info('[MobileUser] Booker created', ['id' => $user->id, 'by' => auth()->id()]);
+            Log::info('[MobileUser] Booker created', ['id' => $user->id, 'role' => $user->mobile_role, 'by' => auth()->id()]);
 
             return redirect()->route('mobile_users.index')->with('success', 'Order booker created successfully.');
 
@@ -67,7 +73,7 @@ class MobileUserController extends Controller
 
         return response()->json([
             'status' => true,
-            'data'   => $user->only(['id', 'name', 'phone', 'username', 'employee_code', 'assigned_area', 'cnic', 'is_active']),
+            'data'   => $user->only(['id', 'name', 'phone', 'username', 'mobile_role', 'employee_code', 'assigned_area', 'cnic', 'is_active']),
         ]);
     }
 
@@ -79,14 +85,18 @@ class MobileUserController extends Controller
             $validated = $request->validate([
                 'name'          => 'required|string|max:255',
                 'phone'         => ['required', 'string', Rule::unique('users', 'phone')->ignore($user->id)],
+                'mobile_role'   => 'nullable|in:booker,delivery_manager',
                 'employee_code' => 'nullable|string|max:50',
                 'assigned_area' => 'nullable|string|max:150',
                 'cnic'          => 'nullable|string|max:20',
             ]);
 
-            $user->update(array_merge($validated, ['updated_by' => auth()->id()]));
+            $user->update(array_merge($validated, [
+                'mobile_role' => $validated['mobile_role'] ?? $user->mobile_role ?? 'booker',
+                'updated_by'  => auth()->id(),
+            ]));
 
-            Log::info('[MobileUser] Booker updated', ['id' => $id, 'by' => auth()->id()]);
+            Log::info('[MobileUser] Booker updated', ['id' => $id, 'role' => $user->mobile_role, 'by' => auth()->id()]);
 
             return redirect()->route('mobile_users.index')->with('success', 'Booker updated successfully.');
 
