@@ -15,6 +15,7 @@ return new class extends Migration
             $table->unsignedBigInteger('customer_id');
             $table->unsignedBigInteger('sale_order_id')->nullable();
             $table->unsignedBigInteger('dispatch_trip_id')->nullable();
+            $table->unsignedBigInteger('location_id')->nullable();
             $table->date('invoice_date');
             $table->enum('payment_terms', ['cash', 'credit'])->default('cash');
 
@@ -43,6 +44,7 @@ return new class extends Migration
 
             $table->foreign('customer_id')->references('id')->on('chart_of_accounts')->onDelete('cascade');
             $table->foreign('sale_order_id')->references('id')->on('sale_orders')->nullOnDelete();
+            $table->foreign('location_id')->references('id')->on('locations')->nullOnDelete();
             $table->foreign('dispatch_trip_id')->references('id')->on('dispatch_trips')->nullOnDelete();
             $table->foreign('created_by')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('updated_by')->references('id')->on('users')->nullOnDelete();

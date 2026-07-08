@@ -141,7 +141,12 @@ Route::middleware(['auth'])->group(function () {
     // ─────────────────────────────────────────────────────────────
     Route::prefix('sale_invoices')->name('sale_invoices.')->group(function () {
         Route::get('/', [SaleInvoiceController::class, 'index'])->middleware('check.permission:sale_invoices.index')->name('index');
+        Route::get('/create', [SaleInvoiceController::class, 'create'])->middleware('check.permission:sale_invoices.create')->name('create');
+        Route::post('/', [SaleInvoiceController::class, 'store'])->middleware('check.permission:sale_invoices.create')->name('store');
         Route::get('/{id}', [SaleInvoiceController::class, 'show'])->middleware('check.permission:sale_invoices.index')->name('show');
+        Route::get('/{id}/edit', [SaleInvoiceController::class, 'edit'])->middleware('check.permission:sale_invoices.edit')->name('edit');
+        Route::put('/{id}', [SaleInvoiceController::class, 'update'])->middleware('check.permission:sale_invoices.edit')->name('update');
+        Route::delete('/{id}', [SaleInvoiceController::class, 'destroy'])->middleware('check.permission:sale_invoices.delete')->name('destroy');
         Route::get('/{id}/print', [SaleInvoiceController::class, 'print'])->middleware('check.permission:sale_invoices.print')->name('print');
     });
 

@@ -14,7 +14,9 @@
 
       <header class="card-header d-flex justify-content-between align-items-center">
         <h2 class="card-title">All Sale Invoices</h2>
-        <a href="{{ route('sale_invoices.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Sale Invoice</a>
+        @can('sale_invoices.create')
+        <a href="{{ route('sale_invoices.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> New Invoice</a>
+        @endcan
       </header>
 
       <div class="card-body">
@@ -50,14 +52,26 @@
                   , 2) }}
                 </td>
                 <td>
-                  <a href="{{ route('sale_invoices.edit', $invoice->id) }}" class="text-primary"><i class="fas fa-edit"></i></a>
-                  <a href="{{ route('sale_invoices.print', $invoice->id) }}" target="_blank" class="text-success"><i class="fas fa-print"></i></a>
-                  <form action="{{ route('sale_invoices.destroy', $invoice->id) }}" method="POST" style="display:inline;">
-                    @csrf
-                    @method('DELETE')
-                    <button class="text-danger" style="border:none" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></button>
-                  </form>
+                  @if($invoice->dispatch_trip_id)
+                    <span class="badge bg-info text-dark">Trip TR-{{ $invoice->dispatchTrip->trip_no ?? '' }}</span>
+                  @else
+                    <span class="badge bg-secondary">Manual</span>
+                  @endif
                 </td>
+                <td>
+                  <a href="{{ route('sale_invoices.print', $invoice->id) }}" target="_blank" title="Print"><i class="fas fa-print"></i></a>
+                  @if(!$invoice->dispatch_trip_id)
+                    @can('sale_invoices.edit')
+                    <a href="{{ route('sale_invoices.edit', $invoice->id) }}" class="text-primary ms-2" title="Edit"><i class="fas fa-edit"></i></a>
+                    @endcan
+                    @can('sale_invoices.delete')
+                    <form action="{{ route('sale_invoices.destroy', $invoice->id) }}" method="POST" class="d-inline ms-2">
+                      @csrf @method('DELETE')
+                      <button class="btn btn-link p-0 text-danger" onclick="return confirm('Delete this invoice?')" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                    </form>
+                    @endcan
+                  @endif
+</td>
             </tr>
             @endforeach
             </tbody>

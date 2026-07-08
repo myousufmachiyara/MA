@@ -11,7 +11,7 @@ class SaleInvoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'invoice_no', 'customer_id', 'sale_order_id', 'dispatch_trip_id', 'invoice_date',
+        'invoice_no', 'customer_id', 'sale_order_id', 'dispatch_trip_id', 'location_id', 'invoice_date',
         'payment_terms', 'is_tax_invoice', 'gst_type', 'gst_rate', 'gst_amount',
         'wht_applicable', 'wht_rate', 'wht_amount',
         'total_quantity', 'net_amount', 'total_amount', 'cogs_amount', 'paid_amount',
@@ -41,5 +41,10 @@ class SaleInvoice extends Model
     public function getBalanceDueAttribute(): float
     {
         return round($this->total_amount - $this->paid_amount, 2);
+    }
+
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
     }
 }
