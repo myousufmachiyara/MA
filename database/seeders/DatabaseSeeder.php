@@ -156,6 +156,9 @@ class DatabaseSeeder extends Seeder
             ['id' => 12, 'hoa_id' => 5, 'name' => 'Rent',              'created_at' => $now, 'updated_at' => $now],
             ['id' => 13, 'hoa_id' => 5, 'name' => 'Utilities',         'created_at' => $now, 'updated_at' => $now],
             ['id' => 14, 'hoa_id' => 5, 'name' => 'Other Expenses',    'created_at' => $now, 'updated_at' => $now],
+
+            ['id' => 15, 'hoa_id' => 2, 'name' => 'Duties & Taxes Payable', 'created_at' => $now, 'updated_at' => $now],
+            ['id' => 16, 'hoa_id' => 1, 'name' => 'Tax Recoverable',        'created_at' => $now, 'updated_at' => $now],
         ]);
 
         // ─────────────────────────────────────────
@@ -191,6 +194,9 @@ class DatabaseSeeder extends Seeder
             // ── ACCOUNTS ADDED FOR SALE MODULE (GST / WHT) ───────────
             ['id' => 16, 'account_code' => '203001', 'shoa_id' =>  5, 'name' => 'GST Payable (Output Tax)', 'account_type' => 'liability',  'receivables' => 0, 'payables' => 0],
             ['id' => 17, 'account_code' => '105001', 'shoa_id' =>  4, 'name' => 'WHT Receivable',           'account_type' => 'receivable', 'receivables' => 0, 'payables' => 0],
+
+            ['id' => 16, 'account_code' => '203001', 'shoa_id' => 15, 'name' => 'GST Payable (Output Tax)', 'account_type' => 'liability',   'receivables' => 0, 'payables' => 0],
+            ['id' => 17, 'account_code' => '105001', 'shoa_id' => 16, 'name' => 'WHT Receivable',            'account_type' => 'receivable',  'receivables' => 0, 'payables' => 0],
         ];
 
         foreach ($coaData as $data) {
@@ -211,6 +217,7 @@ class DatabaseSeeder extends Seeder
             ['id' => 3, 'name' => 'Pieces',   'shortcode' => 'pcs'],
             ['id' => 4, 'name' => 'Bag',      'shortcode' => 'bag'],
             ['id' => 5, 'name' => 'Bundle',   'shortcode' => 'bundle'],
+            ['id' => 6, 'name' => 'Cartons',  'shortcode' => 'ctn'],
         ]);
 
         // 🏬 Default Location — StockService falls back to this for every

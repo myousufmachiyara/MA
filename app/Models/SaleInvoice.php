@@ -1,4 +1,5 @@
 <?php
+// app/Models/SaleInvoice.php
 
 namespace App\Models;
 
@@ -10,13 +11,11 @@ class SaleInvoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'invoice_no',
-        'date',
-        'remarks',
-        'account_id',
-        'type',
-        'discount',
-        'created_by',
+        'invoice_no', 'customer_id', 'sale_order_id', 'dispatch_trip_id', 'invoice_date',
+        'payment_terms', 'is_tax_invoice', 'gst_type', 'gst_rate', 'gst_amount',
+        'wht_applicable', 'wht_rate', 'wht_amount',
+        'total_quantity', 'net_amount', 'total_amount', 'cogs_amount', 'paid_amount',
+        'remarks', 'created_by', 'updated_by',
     ];
 
     public function items()
@@ -24,9 +23,23 @@ class SaleInvoice extends Model
         return $this->hasMany(SaleInvoiceItem::class);
     }
 
-    public function account()
+    public function customer()
     {
-        return $this->belongsTo(ChartOfAccounts::class, 'account_id');
+        return $this->belongsTo(ChartOfAccounts::class, 'customer_id');
+    }
+
+    public function saleOrder()
+    {
+        return $this->belongsTo(SaleOrder::class);
+    }
+
+    public function dispatchTrip()
+    {
+        return $this->belongsTo(DispatchTrip::class);
+    }
+
+    public function getBalanceDueAttribute(): float
+    {
+        return round($this->total_amount - $this->paid_amount, 2);
     }
 }
-
