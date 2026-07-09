@@ -12,7 +12,9 @@
       <header class="card-header d-flex justify-content-between">
         <h2 class="card-title">Locations / Warehouses</h2>
         @can('locations.create')
-        <button type="button" class="modal-with-form btn btn-primary" href="#addModal"><i class="fas fa-plus"></i> Add Location</button>
+        <button type="button" class="modal-with-form btn btn-primary" href="#addModal">
+            <i class="fas fa-plus"></i> Add Location
+        </button>
         @endcan
       </header>
 
