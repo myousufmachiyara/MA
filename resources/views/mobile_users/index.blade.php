@@ -22,9 +22,9 @@
       <header class="card-header d-flex justify-content-between">
         <h2 class="card-title">Order Bookers (Mobile Users)</h2>
         @can('mobile_users.create')
-        <a href="#addModal" class="modal-with-form btn btn-primary">
-          <i class="fas fa-plus"></i> Add Booker
-        </a>
+         <button type="button" class="modal-with-form btn btn-primary" href="#addModal">
+            <i class="fas fa-plus"></i> Add Booker
+        </button>
         @endcan
       </header>
 
