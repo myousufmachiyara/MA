@@ -26,6 +26,12 @@ class StockMovement extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    // FIX: was missing — needed by InventoryReportController's eager loads
+    public function location()
+    {
+        return $this->belongsTo(Location::class);
+    }
+
     private const REFERENCE_LABELS = [
         'purchase_invoice' => 'Purchase Invoice',
         'purchase_return'  => 'Purchase Return',
