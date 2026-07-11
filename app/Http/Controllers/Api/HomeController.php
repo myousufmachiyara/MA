@@ -25,5 +25,5 @@ class HomeController extends Controller
                 'last_sync_at'   => $booker->activityLogs()->where('activity_type', 'order_synced')->latest()->value('created_at'),
             ],
         ]);
-    }
+   }
 }
