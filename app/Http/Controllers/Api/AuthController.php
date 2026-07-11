@@ -88,4 +88,23 @@ class AuthController extends Controller
             ],
         ]);
     }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'old_password' => 'required|string',
+            'new_password' => 'required|string|min:6',
+        ]);
+
+        $user = $request->user();
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->old_password, $user->password)) {
+            return response()->json(['success' => false, 'message' => 'Current password is incorrect.'], 422);
+        }
+
+        $user->update(['password' => \Illuminate\Support\Facades\Hash::make($request->new_password)]);
+        $user->recordActivity('password_changed', 'Booker changed their password', $request);
+
+        return response()->json(['success' => true, 'message' => 'Password changed successfully.']);
+    }
 }
