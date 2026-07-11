@@ -7,7 +7,7 @@ use App\Models\PurchaseInvoiceItem;
 use App\Models\PurchaseInvoiceAttachment;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
-use App\Http\Controllers\Location;
+use App\Models\Location;
 use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\Voucher;
