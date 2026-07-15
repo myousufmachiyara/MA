@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SaleOrder;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\ChartOfAccounts;
 use App\Models\MeasurementUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
