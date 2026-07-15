@@ -29,6 +29,9 @@
                 <th>S.No</th>
                 <th>Item Name</th>
                 <th>Category</th>
+                <th>Variations</th>
+                <th>Selling Price</th>
+                <th>Stock</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -45,6 +48,32 @@
                     @endif
                   @else
                     -
+                  @endif
+                </td>
+                <td>
+                  @if($product->variations->count() > 0)
+                    <span class="badge bg-info text-dark">{{ $product->variations->count() }} variation(s)</span>
+                  @else
+                    <span class="text-muted">—</span>
+                  @endif
+                </td>
+                <td>
+                  @if($product->variations->count() > 0)
+                    @php
+                      $prices = $product->variations->pluck('selling_price');
+                      $min = $prices->min();
+                      $max = $prices->max();
+                    @endphp
+                    {{ $min == $max ? number_format($min, 2) : number_format($min, 2) . ' – ' . number_format($max, 2) }}
+                  @else
+                    {{ number_format($product->selling_price, 2) }}
+                  @endif
+                </td>
+                <td>
+                  @if($product->variations->count() > 0)
+                    {{ number_format($product->variations->sum('stock_quantity'), 2) }}
+                  @else
+                    {{ number_format(\App\Services\StockService::currentStock($product->id, null), 2) }}
                   @endif
                 </td>
                 <td>
@@ -71,6 +100,5 @@
       "pageLength": 100
     });
   });
-
 </script>
 @endsection

@@ -13,39 +13,42 @@ class ProductVariation extends Model
         'product_id',
         'sku',
         'selling_price',
+        'cost_price', // FIX: was missing — PurchaseInvoiceController's update() was silently failing to save this
         'stock_quantity',
     ];
 
-    /* ----------------- Relationships ----------------- */
+    protected $casts = [
+        'selling_price'  => 'decimal:2',
+        'stock_quantity' => 'decimal:2',
+    ];
 
-    // Belongs to main product
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
 
-    // 🔹 ADD THIS: Relationship to Purchase Items
     public function purchaseItems()
     {
         return $this->hasMany(PurchaseInvoiceItem::class, 'variation_id');
     }
 
-    // 🔹 ADD THIS: Relationship to Sale Items
     public function saleItems()
     {
         return $this->hasMany(SaleInvoiceItem::class, 'variation_id');
     }
-    
-    // Belongs to many attribute values (e.g. color, size)
+
     public function attributeValues()
     {
         return $this->belongsToMany(AttributeValue::class, 'product_variation_attribute_values')->withTimestamps();
     }
 
-    // Pivot model for extra handling (if needed)
     public function values()
     {
         return $this->hasMany(ProductVariationAttributeValue::class);
     }
 
+    public function getMarginAttribute(): float
+    {
+        return round($this->selling_price - $this->cost_price, 2);
+    }
 }

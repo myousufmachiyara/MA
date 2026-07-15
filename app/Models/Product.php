@@ -15,7 +15,6 @@ class Product extends Model
         'name',
         'sku',
         'description',
-        'opening_stock',
         'selling_price',
         'measurement_unit',
         'is_active',
@@ -27,7 +26,7 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
-
+    
     public function subcategory()
     {
         return $this->belongsTo(ProductSubcategory::class, 'subcategory_id');
@@ -59,5 +58,15 @@ class Product extends Model
     public function saleInvoices() 
     {
         return $this->hasMany(SaleInvoiceItem::class, 'product_id');
+    }
+    
+    public function getCostPriceAttribute(): float
+    {
+        $lastPrice = $this->purchaseInvoices()
+            ->whereNull('variation_id')
+            ->latest('id')
+            ->value('price');
+
+        return (float) ($lastPrice ?? 0);
     }
 }

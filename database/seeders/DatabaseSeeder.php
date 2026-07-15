@@ -214,7 +214,8 @@ class DatabaseSeeder extends Seeder
             ['id' => 3, 'name' => 'Pieces',   'shortcode' => 'pcs'],
             ['id' => 4, 'name' => 'Bag',      'shortcode' => 'bag'],
             ['id' => 5, 'name' => 'Bundle',   'shortcode' => 'bundle'],
-            ['id' => 6, 'name' => 'Cartons',  'shortcode' => 'ctn'],
+            ['id' => 6, 'name' => 'Cartons',  'shortcode' => 'cartons'],
+            ['id' => 7, 'name' => 'Cases',    'shortcode' => 'cases'],
         ]);
 
         // 🏬 Default Location — StockService falls back to this for every

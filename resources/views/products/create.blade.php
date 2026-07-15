@@ -64,7 +64,8 @@
 
             <div class="col-md-2">
               <label>Selling Price / Unit</label>
-              <input type="number" step="any" name="selling_price" class="form-control" value="{{ old('selling_price', '0.00') }}">
+              <input type="number" step="any" name="selling_price" id="parent_selling_price" class="form-control" value="{{ old('selling_price', '0.00') }}">
+              <small class="text-muted" id="selling_price_note">Used only if this product has no variations below.</small>
               @error('selling_price')<div class="text-danger">{{ $message }}</div>@enderror
             </div>
 
@@ -120,6 +121,7 @@
                   <tr>
                     <th>Variation</th>
                     <th>SKU</th>
+                    <th>Selling Price</th>
                     <th>Stock</th>
                     <th>Action</th>
                   </tr>
@@ -178,6 +180,7 @@
           <tr>
             <td>${label}${inputs}</td>
             <td><input type="text" name="variations[${index}][sku]" class="form-control" value="${mainSku}-${label}"></td>
+            <td><input type="number" step="any" name="variations[${index}][selling_price]" class="form-control" value="0.00" required></td>
             <td><input type="number" name="variations[${index}][stock_quantity]" step="any" class="form-control" value="0" required></td>
             <td><button type="button" class="btn btn-sm btn-danger remove-variation">X</button></td>
           </tr>
@@ -185,6 +188,26 @@
       });
     });
 
+    // Grey out the parent price once variations exist — it's not used for variable products
+    function toggleParentPriceState() {
+      const hasVariations = $('#variationsTable tbody tr').length > 0;
+      $('#parent_selling_price').prop('disabled', hasVariations);
+      $('#selling_price_note')
+        .text(hasVariations
+          ? 'Not used — each variation below has its own price.'
+          : 'Used only if this product has no variations below.')
+        .css('color', hasVariations ? '#dc3545' : '');
+    }
+
+    // Call it once after variations are generated
+    $('#generateVariationsBtn').on('click', function () {
+      setTimeout(toggleParentPriceState, 50); // let the table render first
+    });
+
+    // And once after a variation row is removed (in case the last one is deleted)
+    $(document).on('click', '.remove-variation', function () {
+      setTimeout(toggleParentPriceState, 50);
+    });
     $(document).on('click', '.remove-variation', function () {
       $(this).closest('tr').remove();
     });

@@ -22,12 +22,13 @@ class ProductController extends Controller
 
         $products = $query->orderBy('name')->get()->map(function ($product) {
             if ($product->variations->count() > 0) {
-                $variations = $product->variations->map(function ($v) use ($product) {
+                $variations = $product->variations->map(function ($v) {
                     $stock = (float) $v->stock_quantity;
                     return [
                         'id'           => $v->id,
                         'sku'          => $v->sku,
-                        'price'        => (float) ($product->selling_price ?? 0),
+                        // FIX: variation's own selling price, not the parent product's
+                        'price'        => (float) $v->selling_price,
                         'stock_status' => $stock <= 0 ? 'out' : ($stock <= 10 ? 'low' : 'in_stock'),
                     ];
                 });

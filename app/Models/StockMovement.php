@@ -33,6 +33,7 @@ class StockMovement extends Model
     }
 
     private const REFERENCE_LABELS = [
+        'opening_stock' => 'Opening Stock',
         'purchase_invoice' => 'Purchase Invoice',
         'purchase_return'  => 'Purchase Return',
         'sale_invoice'     => 'Sale Invoice',
