@@ -331,7 +331,7 @@
   function loadFromPO(poId) {
     if (!poId) return;
 
-    fetch(`/purchase-orders/${poId}/items`)
+    fetch(`/purchase_orders/${poId}/items`)
         .then(res => res.json())
         .then(data => {
             if (!data.success) { alert(data.message || 'Could not load order items.'); return; }
