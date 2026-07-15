@@ -12,7 +12,7 @@
             <header class="card-header d-flex justify-content-between align-items-center">
                 <h2 class="card-title">Booked Orders</h2>
                 @can('sale_orders.create')
-                <a href="{{ route('sale_orders.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i>Book Order</a>
+                <a href="{{ route('sale_orders.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Book Order</a>
                 @endcan
             </header>
             <div class="card-body">
