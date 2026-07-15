@@ -237,7 +237,10 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($attributes as $attributeName => $values) {
-            $attribute = Attribute::firstOrCreate(['name' => $attributeName]);
+            $attribute = Attribute::firstOrCreate(
+                ['name' => $attributeName],
+                ['slug' => Str::slug($attributeName)]
+            );
 
             foreach ($values as $value) {
                 AttributeValue::firstOrCreate([
