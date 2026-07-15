@@ -257,6 +257,45 @@
 		</div>
 		@endcan
 
+		@can('purchase_orders.index')
+			<div class="row">
+			<div class="col-12 col-md-6 mb-3 d-flex">
+				<section class="card flex-fill">
+				<header class="card-header d-flex justify-content-between align-items-center">
+					<h2 class="card-title">
+					Pending Purchase Orders
+					@if(($pendingPOsCount ?? 0) > 0)
+						<span class="badge bg-danger ms-1">{{ $pendingPOsCount }}</span>
+					@endif
+					</h2>
+				</header>
+				<div class="card-body scrollable-div">
+					<table class="table table-responsive-md table-striped mb-0">
+					<thead class="sticky-tbl-header">
+						<tr><th>PO #</th><th>Date</th><th>Vendor</th><th class="text-end">Amount</th></tr>
+					</thead>
+					<tbody>
+						@forelse($pendingPOs ?? [] as $po)
+						<tr>
+						<td><a href="{{ route('purchase_orders.edit', $po->id) }}">PO-{{ $po->order_no }}</a></td>
+						<td>{{ \Carbon\Carbon::parse($po->order_date)->format('d-M-Y') }}</td>
+						<td>{{ $po->vendor->name ?? 'N/A' }}</td>
+						<td class="text-end">{{ number_format($po->total_amount, 2) }}</td>
+						</tr>
+						@empty
+						<tr><td colspan="4" class="text-center text-muted py-3">No pending purchase orders — all caught up.</td></tr>
+						@endforelse
+					</tbody>
+					</table>
+				</div>
+				<footer class="card-footer text-end">
+					<a href="{{ route('purchase_orders.index') }}" class="btn btn-sm btn-outline-primary">View All Orders</a>
+				</footer>
+				</section>
+			</div>
+			</div>
+		@endcan
+
 	</div>
 	@endif
 

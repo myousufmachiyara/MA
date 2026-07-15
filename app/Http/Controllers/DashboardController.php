@@ -11,6 +11,7 @@ use App\Models\Voucher;
 use App\Models\AccountingEntry;
 use App\Models\LocationStock;
 use App\Models\User;
+use App\Models\PurchaseOrder;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -62,6 +63,16 @@ class DashboardController extends Controller
         if ($user->can('mobile_users.index')) {
             $data['activeBookers']  = User::where('user_type', 'mobile')->where('mobile_role', 'booker')->where('is_active', true)->count();
             $data['activeDrivers']  = User::where('user_type', 'mobile')->where('mobile_role', 'delivery_manager')->where('is_active', true)->count();
+        }
+
+        // ── Pending Purchase Orders (no invoice raised yet) ──────────
+        if ($user->can('purchase_orders.index')) {
+            $pendingPOsQuery = PurchaseOrder::with('vendor')
+                ->whereDoesntHave('invoices')
+                ->where('status', '!=', 'cancelled');
+
+            $data['pendingPOsCount'] = (clone $pendingPOsQuery)->count();
+            $data['pendingPOs'] = $pendingPOsQuery->latest('order_date')->take(10)->get();
         }
 
         return view('home', $data);
