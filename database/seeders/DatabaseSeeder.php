@@ -231,5 +231,20 @@ class DatabaseSeeder extends Seeder
                 'updated_at' => $now,
             ]
         );
+
+        $attributes = [
+            'Size' => ['300ml', '500ml', '1000ml', '1500ml', '2250ml', '250ml'],
+        ];
+
+        foreach ($attributes as $attributeName => $values) {
+            $attribute = Attribute::firstOrCreate(['name' => $attributeName]);
+
+            foreach ($values as $value) {
+                AttributeValue::firstOrCreate([
+                    'attribute_id' => $attribute->id,
+                    'value'        => $value,
+                ]);
+            }
+        }
     }
 }
