@@ -176,15 +176,22 @@
   }
 
     // Auto-fill price from variation's own selling_price when a variation is picked
-    $(document).on('select2:select change', 'select[id^="variation"]', function () {
-        const rowIndex = this.id.match(/\d+$/)[0];
-        const selectedOption = $(this).find('option:selected');
-        const variationPrice = selectedOption.attr('data-price');
+    $(document).on('select2:select change', 'select[id^="variation"]', function (e) {
+    console.log('Variation handler fired', this.id, e.type);
 
-        if (variationPrice !== undefined && variationPrice !== '') {
-        $(`#price${rowIndex}`).val(parseFloat(variationPrice).toFixed(2));
-        rowTotal(rowIndex);
-        }
-    });
+    const rowIndex = this.id.match(/\d+$/)[0];
+    const selectedOption = $(this).find('option:selected');
+    const variationPrice = selectedOption.attr('data-price');
+
+    console.log('rowIndex:', rowIndex, 'variationPrice:', variationPrice, 'price field exists:', $(`#price${rowIndex}`).length);
+
+    if (variationPrice !== undefined && variationPrice !== '') {
+      $(`#price${rowIndex}`).val(parseFloat(variationPrice).toFixed(2));
+      rowTotal(rowIndex);
+      console.log('Price field updated to:', $(`#price${rowIndex}`).val());
+    } else {
+      console.log('variationPrice was empty/undefined — nothing written');
+    }
+});
 </script>
 @endsection
