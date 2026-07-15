@@ -104,6 +104,8 @@ Route::middleware(['auth'])->group(function () {
     // ─────────────────────────────────────────────────────────────
     Route::prefix('sale_orders')->name('sale_orders.')->group(function () {
         Route::get('/', [SaleOrderController::class, 'index'])->middleware('check.permission:sale_orders.index')->name('index');
+        Route::get('/create', [SaleOrderController::class, 'create'])->middleware('check.permission:sale_orders.create')->name('create');
+        Route::post('/', [SaleOrderController::class, 'store'])->middleware('check.permission:sale_orders.create')->name('store');
         Route::get('/{id}/edit', [SaleOrderController::class, 'edit'])->middleware('check.permission:sale_orders.edit')->name('edit');
         Route::put('/{id}', [SaleOrderController::class, 'update'])->middleware('check.permission:sale_orders.edit')->name('update');
         Route::put('/{id}/cancel', [SaleOrderController::class, 'cancel'])->middleware('check.permission:sale_orders.edit')->name('cancel');

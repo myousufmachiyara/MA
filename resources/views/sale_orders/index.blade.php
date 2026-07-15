@@ -9,8 +9,12 @@
             @if (session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
             @if (session('error'))<div class="alert alert-danger">{{ session('error') }}</div>@endif
 
-            <header class="card-header"><h2 class="card-title">Booked Orders (from Order Bookers)</h2></header>
-
+            <header class="card-header d-flex justify-content-between align-items-center">
+                <h2 class="card-title">Booked Orders</h2>
+                @can('sale_orders.create')
+                <a href="{{ route('sale_orders.create') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Book Order (Walk-in)</a>
+                @endcan
+            </header>
             <div class="card-body">
                 <form method="GET" class="row mb-3">
                     <div class="col-md-3">
