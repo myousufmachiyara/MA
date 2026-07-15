@@ -175,7 +175,6 @@
     }
   }
 
-  // Auto-fill price from variation's own selling_price when a variation is picked
     // Auto-fill price from variation's own selling_price when a variation is picked
     $(document).on('select2:select change', 'select[id^="variation"]', function () {
         const rowIndex = this.id.match(/\d+$/)[0];
