@@ -176,14 +176,16 @@
   }
 
   // Auto-fill price from variation's own selling_price when a variation is picked
-  $(document).on('change', 'select[id^="variation"]', function () {
-    const rowIndex = this.id.match(/\d+$/)[0];
-    const selectedOption = this.options[this.selectedIndex];
-    const variationPrice = selectedOption.getAttribute('data-price');
-    if (variationPrice !== null) {
-      $(`#price${rowIndex}`).val(variationPrice);
-      rowTotal(rowIndex);
-    }
-  });
+    // Auto-fill price from variation's own selling_price when a variation is picked
+    $(document).on('select2:select change', 'select[id^="variation"]', function () {
+        const rowIndex = this.id.match(/\d+$/)[0];
+        const selectedOption = $(this).find('option:selected');
+        const variationPrice = selectedOption.attr('data-price');
+
+        if (variationPrice !== undefined && variationPrice !== '') {
+        $(`#price${rowIndex}`).val(parseFloat(variationPrice).toFixed(2));
+        rowTotal(rowIndex);
+        }
+    });
 </script>
 @endsection
