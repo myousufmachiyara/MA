@@ -25,7 +25,8 @@
                 <td>
                   <select name="items[{{ $key }}][item_id]" id="item_name{{ $key + 1 }}" class="form-control select2-js" onchange="onItemChange(this)">
                     @foreach ($products as $product)
-                      <option value="{{ $product->id }}" {{ $item->item_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
+                      <option value="{{ $product->id }}" data-unit-id="{{ $product->measurement_unit }}" data-price="{{ $product->selling_price }}"
+                        {{ $item->item_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                     @endforeach
                   </select>
                 </td>
@@ -33,7 +34,7 @@
                   <select name="items[{{ $key }}][variation_id]" id="variation{{ $key + 1 }}" class="form-control select2-js">
                     <option value="">No Variation</option>
                     @foreach($item->product->variations as $v)
-                      <option value="{{ $v->id }}" {{ $item->variation_id == $v->id ? 'selected' : '' }}>{{ $v->sku }}</option>
+                      <option value="{{ $v->id }}" data-price="{{ $v->selling_price }}" {{ $item->variation_id == $v->id ? 'selected' : '' }}>{{ $v->sku }}</option>
                     @endforeach
                   </select>
                 </td>
@@ -82,17 +83,17 @@
       <td class="serial-no"></td>
       <td><select name="items[${rowIndex}][item_id]" id="item_name${index}" class="form-control select2-js" onchange="onItemChange(this)">
         <option value="">Select Item</option>
-        ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+        ${products.map(p => `<option value="${p.id}" data-unit-id="${p.measurement_unit}" data-price="${p.selling_price}">${p.name}</option>`).join('')}
       </select></td>
       <td><select name="items[${rowIndex}][variation_id]" id="variation${index}" class="form-control select2-js"><option value="">No Variation</option></select></td>
       <td><input type="number" name="items[${rowIndex}][quantity]" id="qty${index}" class="form-control quantity" value="0" step="any" onchange="rowTotal(${index})"></td>
-      <td><select name="items[${rowIndex}][unit]" class="form-control select2-js">${units.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></td>
+      <td><select name="items[${rowIndex}][unit]" id="unit${index}" class="form-control select2-js">${units.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></td>
       <td><input type="number" name="items[${rowIndex}][price]" id="price${index}" class="form-control" value="0" step="any" onchange="rowTotal(${index})"></td>
       <td><input type="number" id="amount${index}" class="form-control" value="0" disabled></td>
       <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>
     </tr>`;
     $('#OrderTableBody').append(row);
-    $(`#item_name${index}, #variation${index}`).select2({ width: '100%' });
+    $(`#item_name${index}, #variation${index}, #unit${index}`).select2({ width: '100%' });
     index++;
     updateSerialNumbers();
   }
@@ -116,19 +117,45 @@
   function onItemChange(el) {
     const idMatch = el.id.match(/\d+$/);
     const rowIndex = idMatch[0];
+
+    // FIX: auto-fill unit + selling price from the product's own defaults (was missing entirely)
+    const selectedOption = el.options[el.selectedIndex];
+    const unitId = selectedOption.getAttribute('data-unit-id');
+    const defaultPrice = selectedOption.getAttribute('data-price');
+    if (unitId) $(`#unit${rowIndex}`).val(String(unitId)).trigger('change.select2');
+    if (defaultPrice !== null) {
+      $(`#price${rowIndex}`).val(defaultPrice);
+      rowTotal(rowIndex);
+    }
+
     const variationSelect = $(`#variation${rowIndex}`);
     const itemId = el.value;
+
     if (itemId) {
       fetch(`/product/${itemId}/variations`)
         .then(res => res.json())
         .then(data => {
           variationSelect.html('<option value="">No Variation</option>');
           if (data.success && data.variation.length > 0) {
-            data.variation.forEach(v => variationSelect.append(`<option value="${v.id}">${v.sku}</option>`));
+            data.variation.forEach(v => {
+              // FIX: was missing data-price — this is what the delegated handler below reads
+              variationSelect.append(`<option value="${v.id}" data-price="${v.selling_price}">${v.sku}</option>`);
+            });
           }
           variationSelect.trigger('change.select2');
         });
     }
   }
+
+  // FIX: this entire handler was missing — auto-fill price when a variation is picked
+  $(document).on('change', 'select[id^="variation"]', function () {
+    const rowIndex = this.id.match(/\d+$/)[0];
+    const selectedOption = this.options[this.selectedIndex];
+    const variationPrice = selectedOption.getAttribute('data-price');
+    if (variationPrice !== null && variationPrice !== '') {
+      $(`#price${rowIndex}`).val(variationPrice);
+      rowTotal(rowIndex);
+    }
+  });
 </script>
 @endsection

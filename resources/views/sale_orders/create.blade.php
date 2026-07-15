@@ -167,7 +167,7 @@
           variationSelect.html('<option value="">No Variation</option>');
           if (data.success && data.variation.length > 0) {
             data.variation.forEach(v => {
-              variationSelect.append(`<option value="${v.id}" data-price="${v.selling_price}">${v.sku}</option>`);
+                variationSelect.append(`<option value="${v.id}" data-price="${v.selling_price ?? 0}">${v.sku}</option>`);
             });
           }
           variationSelect.trigger('change.select2');
