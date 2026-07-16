@@ -11,6 +11,7 @@ use App\Models\ProductVariation;
 use App\Models\Voucher;
 use App\Models\User;
 use App\Services\StockService;
+use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -308,43 +309,31 @@ class DispatchTripController extends Controller
                     'wht_amount'     => $whtAmount,
                     'cogs_amount'    => $cogsTotal,
                 ]);
-
-                // ── Accounting entries ─────────────────────────────────
-                // 1) Revenue + GST liability, against customer receivable
-                Voucher::create([
-                    'date'         => $trip->trip_date,
-                    'voucher_type' => 'journal',
-                    'ac_dr_sid'    => $order->customer_id,
-                    'ac_cr_sid'    => $salesAccount->id,
-                    'amount'       => $netAmount,
-                    'reference'    => 'SI-' . $invoice->id,
-                    'remarks'      => "Sale Invoice #{$invoiceNo} — Sales Revenue",
-                ]);
+                // ── Accounting entries — single combined voucher per invoice ─────────
+                $lines = [
+                    ['account_id' => $order->customer_id, 'debit' => $totalAmount, 'credit' => 0, 'narration' => 'Sale invoice total'],
+                    ['account_id' => $salesAccount->id,   'debit' => 0, 'credit' => $netAmount, 'narration' => 'Sales revenue'],
+                ];
 
                 if ($applyGst && $gstAmount > 0) {
-                    Voucher::create([
-                        'date'         => $trip->trip_date,
-                        'voucher_type' => 'journal',
-                        'ac_dr_sid'    => $order->customer_id,
-                        'ac_cr_sid'    => $gstAccount->id,
-                        'amount'       => $gstAmount,
-                        'reference'    => 'SI-GST-' . $invoice->id,
-                        'remarks'      => "Sale Invoice #{$invoiceNo} — GST Output Tax",
-                    ]);
+                    $lines[] = ['account_id' => $gstAccount->id, 'debit' => 0, 'credit' => $gstAmount, 'narration' => 'GST output tax'];
                 }
 
-                // 2) COGS
                 if ($cogsTotal > 0) {
-                    Voucher::create([
-                        'date'         => $trip->trip_date,
-                        'voucher_type' => 'journal',
-                        'ac_dr_sid'    => $cogsAccount->id,
-                        'ac_cr_sid'    => $inventoryAccount->id,
-                        'amount'       => $cogsTotal,
-                        'reference'    => 'SI-COGS-' . $invoice->id,
-                        'remarks'      => "Sale Invoice #{$invoiceNo} — Cost of Goods Sold",
-                    ]);
+                    $lines[] = ['account_id' => $cogsAccount->id, 'debit' => $cogsTotal, 'credit' => 0, 'narration' => 'Cost of goods sold'];
+                    $lines[] = ['account_id' => $inventoryAccount->id, 'debit' => 0, 'credit' => $cogsTotal, 'narration' => 'Stock issued'];
                 }
+
+                VoucherService::postEntries(
+                    [
+                        'voucher_type'   => 'sale',
+                        'voucher_date'   => $trip->trip_date,
+                        'reference_type' => SaleInvoice::class,
+                        'reference_id'   => $invoice->id,
+                        'remarks'        => "Sale Invoice #{$invoiceNo}",
+                    ],
+                    $lines
+                );
 
                 $order->update(['status' => 'invoiced']);
                 $tripTotal += $totalAmount;

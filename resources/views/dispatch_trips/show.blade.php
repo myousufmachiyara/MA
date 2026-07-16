@@ -11,7 +11,7 @@
     <section class="card">
       <header class="card-header d-flex justify-content-between">
         <h2 class="card-title">Trip TR-{{ $trip->trip_no }} — {{ $trip->vehicle_no }} — {{ $trip->deliveryManager->name }}</h2>
-        <span class="bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
+        <span class="badge bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
       </header>
 
       <div class="card-body">
