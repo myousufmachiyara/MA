@@ -160,6 +160,7 @@
 
 <script>
   var products = @json($products);
+  var units = @json($units);
   var index = 2;
 
   $(document).ready(function () {
@@ -345,6 +346,10 @@
             data.items.forEach((item, i) => {
                 const rowIndex = i;
                 const rowNum = i + 1;
+
+                const unitMatch = units.find(u => u.id == item.unit);
+                const unitLabel = unitMatch ? `${unitMatch.name} (${unitMatch.shortcode})` : 'Unit';
+
                 let row = `
                   <tr>
                     <td class="serial-no">${rowNum}</td>
@@ -361,7 +366,7 @@
                     <td><input type="number" name="items[${rowIndex}][quantity]" id="pur_qty${rowNum}" class="form-control quantity" value="${item.remaining_qty}" step="any" onchange="rowTotal(${rowNum})"></td>
                     <td>
                       <select name="items[${rowIndex}][unit]" class="form-control" disabled>
-                        <option value="${item.unit}" selected>Unit</option>
+                        <option value="${item.unit}" selected>${unitLabel}</option>
                       </select>
                       <input type="hidden" name="items[${rowIndex}][unit]" value="${item.unit}">
                     </td>
