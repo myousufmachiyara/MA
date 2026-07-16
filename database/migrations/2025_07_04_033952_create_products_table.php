@@ -21,7 +21,8 @@ return new class extends Migration
 
             // Inventory & Pricing
             $table->decimal('selling_price', 10, 2)->default(0);
-
+            $table->decimal('cost_price', 15, 4)->default(0);
+            
             // Classification
             $table->unsignedBigInteger('measurement_unit');
             $table->boolean('is_active')->default(true);

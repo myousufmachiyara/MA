@@ -10,14 +10,13 @@ class Product extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'category_id',
-        'subcategory_id',
-        'name',
-        'sku',
-        'description',
-        'selling_price',
-        'measurement_unit',
-        'is_active',
+        'category_id', 'subcategory_id', 'name', 'sku', 'description',
+        'selling_price', 'cost_price', 'measurement_unit', 'is_active',
+    ];
+
+    protected $casts = [
+        'selling_price' => 'decimal:2',
+        'cost_price'    => 'decimal:4',
     ];
     /* ----------------- Relationships ----------------- */
 

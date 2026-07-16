@@ -19,6 +19,7 @@ class ProductVariation extends Model
 
     protected $casts = [
         'selling_price'  => 'decimal:2',
+        'cost_price'     => 'decimal:4', // update from decimal:2 if it's currently 2
         'stock_quantity' => 'decimal:2',
     ];
 

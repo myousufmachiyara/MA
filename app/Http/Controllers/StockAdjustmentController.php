@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\ChartOfAccounts;
 use App\Services\StockService;
 use App\Services\VoucherService;
+use App\Services\CostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -67,6 +68,16 @@ class StockAdjustmentController extends Controller
         return view('stock_adjustments.create', compact('products', 'locations'));
     }
 
+    /**
+     * STORE
+     *
+     * Cost tracking: only an "increase" direction blends into the weighted
+     * average via CostingService — this represents new stock value entering
+     * the business (e.g. stock-take found extra units, treated like a
+     * mini-purchase at the given unit cost). A "decrease" (damage, loss,
+     * theft) never touches cost_price — it consumes existing stock at
+     * whatever the current average already is, exactly as a sale does.
+     */
     public function store(Request $request)
     {
         $request->validate([
@@ -123,6 +134,18 @@ class StockAdjustmentController extends Controller
                     "Adjustment #{$adjustmentNo} ({$request->reason_type})" . (!empty($itemData['remarks']) ? ' — ' . $itemData['remarks'] : ''),
                     $locationId
                 );
+
+                // FIX: only "increase" blends the given unit cost into the
+                // running weighted average — "decrease" leaves cost_price untouched
+                if ($direction === 'increase') {
+                    CostingService::applyIncoming(
+                        $itemData['item_id'],
+                        $itemData['variation_id'] ?? null,
+                        $stockBefore,
+                        $qty,
+                        $unitCost
+                    );
+                }
 
                 $stockAfter = StockService::currentStock($itemData['item_id'], $itemData['variation_id'] ?? null);
 

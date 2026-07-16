@@ -14,6 +14,7 @@ use App\Models\Voucher;
 use App\Models\MeasurementUnit;
 use App\Models\ChartOfAccounts;
 use App\Services\VoucherService;
+use App\Services\CostingService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -80,13 +81,11 @@ class PurchaseInvoiceController extends Controller
      * Accounting entry:
      *   Dr Inventory / Stock in Hand   (asset increases)
      *   Cr Vendor / Accounts Payable   (liability increases)
-     */
-    /**
-     * STORE
      *
-     * Accounting entry:
-     *   Dr Inventory / Stock in Hand   (asset increases)
-     *   Cr Vendor / Accounts Payable   (liability increases)
+     * Cost tracking: weighted average cost is recalculated via CostingService,
+     * NOT simply overwritten with the latest purchase price. This keeps
+     * cost_price accurate for COGS/Gross Profit reporting when the same item
+     * is purchased at different prices over time.
      */
     public function store(Request $request)
     {
@@ -152,6 +151,10 @@ class PurchaseInvoiceController extends Controller
                     'price'        => $price,
                 ]);
 
+                // FIX: capture stock level BEFORE this batch arrives — required
+                // for correct weighted-average math
+                $qtyBefore = StockService::currentStock($itemData['item_id'], $itemData['variation_id'] ?? null);
+
                 StockService::move(
                     $itemData['item_id'],
                     $itemData['variation_id'] ?? null,
@@ -163,11 +166,14 @@ class PurchaseInvoiceController extends Controller
                     $locationId
                 );
 
-                // Cost tracking — last purchase price becomes current cost (used by Sale COGS)
-                $target = ($itemData['variation_id'] ?? null)
-                    ? ProductVariation::find($itemData['variation_id'])
-                    : Product::find($itemData['item_id']);
-                $target?->update(['cost_price' => $price]);
+                // FIX: weighted average blend, not a flat overwrite
+                CostingService::applyIncoming(
+                    $itemData['item_id'],
+                    $itemData['variation_id'] ?? null,
+                    $qtyBefore,
+                    $qty,
+                    $price
+                );
 
                 if (!empty($itemData['po_item_id'])) {
                     $poItem = PurchaseOrderItem::find($itemData['po_item_id']);
@@ -238,6 +244,19 @@ class PurchaseInvoiceController extends Controller
         }
     }
 
+    /**
+     * UPDATE
+     *
+     * Note on costing: editing an invoice reverses the OLD quantity from
+     * stock (StockService 'out') but deliberately does NOT attempt to
+     * un-blend the old price from the weighted average — that would require
+     * replaying full transaction history and isn't practical. Instead, the
+     * NEW quantity/price is blended in fresh via CostingService, same as a
+     * new purchase. This is a known, accepted limitation of perpetual
+     * weighted-average costing (see prior discussion) — quantity and
+     * accounting entries stay fully correct; only the average cost figure
+     * may drift slightly from a theoretically perfect recalculation.
+     */
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -314,14 +333,19 @@ class PurchaseInvoiceController extends Controller
                     'price'        => $price,
                 ]);
 
+                // FIX: capture stock BEFORE this batch is re-added
+                $qtyBefore = StockService::currentStock($itemData['item_id'], $variationId);
+
                 StockService::move(
                     $itemData['item_id'], $variationId, $qty,
                     'in', 'purchase_invoice', $invoice->id, "Updated Purchase Invoice #{$invoice->invoice_no}",
                     $newLocationId
                 );
 
-                $target = $variationId ? ProductVariation::find($variationId) : Product::find($itemData['item_id']);
-                $target?->update(['cost_price' => $price]);
+                // FIX: weighted average blend instead of flat overwrite
+                CostingService::applyIncoming(
+                    $itemData['item_id'], $variationId, $qtyBefore, $qty, $price
+                );
 
                 if ($poItemId) {
                     $poItem = PurchaseOrderItem::find($poItemId);
