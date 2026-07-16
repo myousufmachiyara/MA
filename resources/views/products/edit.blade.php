@@ -77,7 +77,7 @@
               </small>
             </div>
 
-            <div class="col-md-2">
+            <div class="col-md-2 mt-3">
               <label>Selling Price / Unit</label>
               <input type="number" step="any" name="selling_price" id="parent_selling_price" class="form-control"
                 value="{{ old('selling_price', $product->selling_price) }}"
