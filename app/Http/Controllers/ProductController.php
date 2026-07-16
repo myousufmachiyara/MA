@@ -167,7 +167,7 @@ class ProductController extends Controller
             // opening_stock excluded — one-time seed at creation only, not editable here
             $product->update($request->only([
                 'name', 'category_id', 'subcategory_id', 'sku', 'measurement_unit',
-                'description', 'selling_price', 'is_active'
+                'description', 'selling_price', 'cost_price', 'is_active'
             ]));
 
             $handledVariationIds = [];
@@ -227,8 +227,8 @@ class ProductController extends Controller
             return redirect()->route('products.index')->with('success', 'Product updated successfully.');
         } catch (\Throwable $e) {
             DB::rollBack();
-            Log::error('[Product Update] Failed', ['error' => $e->getMessage()]);
-            return back()->withInput()->with('error', 'Product update failed. Try again.');
+            Log::error('[Product Update] Failed', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            return back()->withInput()->with('error', 'Product update failed: ' . $e->getMessage());
         }
     }
 

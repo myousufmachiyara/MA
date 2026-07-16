@@ -89,7 +89,8 @@
 
             <div class="col-md-2 mt-3">
               <label>Opening Stock</label>
-              <input type="number" step="any" name="opening_stock" class="form-control" value="{{ old('opening_stock', $product->opening_stock) }}">
+              <input type="number" step="any" name="opening_stock" class="form-control" value="{{ old('opening_stock', $product->opening_stock ?? 0) }}" disabled>
+              <small class="text-muted">One-time seed at creation only — not editable here.</small>
             </div>
 
             <div class="col-md-2 mt-3">
@@ -99,7 +100,6 @@
                 <option value="0" {{ old('is_active', $product->is_active) == 0 ? 'selected' : '' }}>Inactive</option>
               </select>
             </div>
-
 
             <div class="col-md-4 mt-3">
               <label>Description</label>
@@ -121,7 +121,8 @@
                       </div>
                       <div class="col-md-2">
                         <label>Cost Price</label>
-                        <input type="number" step="any" name="new_variations[${newVariationIndex}][cost_price]" value="0.00" class="form-control">
+                        <input type="text" class="form-control" value="{{ number_format($variation->cost_price, 4) }}" disabled>
+                        <small class="text-muted">Auto-updates from Purchase Invoices</small>
                       </div>
                       <div class="col-md-2">
                         <label>Selling Price</label>
@@ -129,7 +130,8 @@
                       </div>
                       <div class="col-md-2">
                         <label>Stock</label>
-                        <input type="number" step="any" name="variations[{{ $i }}][stock_quantity]" class="form-control" value="{{ $variation->stock_quantity }}">
+                        <input type="text" class="form-control" value="{{ number_format($variation->stock_quantity, 2) }}" disabled>
+                        <small class="text-muted">Use Stock Adjustment to correct</small>
                       </div>
                       <div class="col-md-3">
                         <label>Attributes</label>
@@ -143,8 +145,10 @@
                           @endforeach
                         </select>
                       </div>
-                      <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-sm btn-danger remove-existing-variation" data-id="{{ $variation->id }}">X</button>
+                    </div>
+                    <div class="row mt-2">
+                      <div class="col-12 text-end">
+                        <button type="button" class="btn btn-sm btn-danger remove-existing-variation" data-id="{{ $variation->id }}">Remove Variation</button>
                       </div>
                     </div>
                   </div>
@@ -171,7 +175,7 @@
 </div>
 
 <script>
-  
+
   $(document).ready(function () {
     $('.select2-js').select2();
 
@@ -202,6 +206,10 @@
               <input type="number" step="any" name="new_variations[${newVariationIndex}][selling_price]" value="0.00" class="form-control">
             </div>
             <div class="col-md-2">
+              <label>Cost Price</label>
+              <input type="number" step="any" name="new_variations[${newVariationIndex}][cost_price]" value="0.00" class="form-control">
+            </div>
+            <div class="col-md-2">
               <label>Stock</label>
               <input type="number" step="any" name="new_variations[${newVariationIndex}][stock_quantity]" value="0.00" class="form-control">
             </div>
@@ -215,12 +223,12 @@
                 @endforeach
               </select>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
-              <button type="button" class="btn btn-sm btn-danger remove-new-variation">X</button>
+            <div class="col-md-12 text-end mt-2">
+              <button type="button" class="btn btn-sm btn-danger remove-new-variation">Remove</button>
             </div>
           </div>
         </div>
-      `;    
+      `;
       $('#new-variation-section').append(html);
       $('.select2-js').select2();
     });
@@ -233,7 +241,7 @@
       const block = $(this).closest('.variation-block');
       const variationId = $(this).data('id');
       if (confirm('Are you sure you want to remove this variation?')) {
-        block.find('input, select, textarea').prop('disabled', true); // disable all fields so they don’t get submitted
+        block.find('input, select, textarea').prop('disabled', true);
         block.hide();
         block.append(`<input type="hidden" name="removed_variations[]" value="${variationId}" class="removed-variation-flag">`);
         const undoHtml = `<div class="undo-variation-alert alert alert-warning mb-3" data-id="${variationId}">
@@ -246,7 +254,7 @@
     $(document).on('click', '.undo-remove-variation', function () {
       const alertBox = $(this).closest('.undo-variation-alert');
       const variationId = alertBox.data('id');
-      const block = $('.variation-block').has(`input[name="variation_ids[]"][value="${variationId}"]`);
+      const block = $(`.variation-block:has(button[data-id="${variationId}"])`);
       block.find('.removed-variation-flag').remove();
       block.find('input, select, textarea').prop('disabled', false);
       block.show();
