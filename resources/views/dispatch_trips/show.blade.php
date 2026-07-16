@@ -145,9 +145,9 @@
         </table>
         @if($trip->status === 'dispatched')
             <div class="mt-3">
-                <a href="{{ route('settlements.create', $trip->id) }}" class="btn btn-warning">
-                    <i class="fas fa-hand-holding-usd"></i> Settle Trip (Record Payment & Returns)
-                </a>
+              <a href="{{ route('dispatch_trips.settle', $trip->id) }}" class="btn btn-warning">
+                  <i class="fas fa-hand-holding-usd"></i> Settle Trip (Record Payment & Returns)
+              </a>
             </div>
         @endif
         @endif

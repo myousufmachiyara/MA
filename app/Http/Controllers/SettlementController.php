@@ -7,6 +7,7 @@ use App\Models\DispatchTrip;
 use App\Models\ChartOfAccounts;
 use App\Models\Voucher;
 use App\Services\StockService;
+use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -143,50 +144,46 @@ class SettlementController extends Controller
                 }
 
                 // ── Accounting entries ──────────────────────────────
+                // ── Accounting entries — single combined voucher per invoice ──────────
+                $lines = [];
+
                 if ($returnedValueNet > 0) {
-                    Voucher::create([
-                        'date' => $request->settlement_date, 'voucher_type' => 'journal',
-                        'ac_dr_sid' => $salesAccount->id, 'ac_cr_sid' => $invoice->customer_id,
-                        'amount' => $returnedValueNet, 'reference' => "SR-{$invoice->id}-{$settlement->id}",
-                        'remarks' => "Return against Sale Invoice #{$invoice->invoice_no}",
-                    ]);
-                    if ($returnedCost > 0) {
-                        Voucher::create([
-                            'date' => $request->settlement_date, 'voucher_type' => 'journal',
-                            'ac_dr_sid' => $inventoryAccount->id, 'ac_cr_sid' => $cogsAccount->id,
-                            'amount' => $returnedCost, 'reference' => "SR-COGS-{$invoice->id}-{$settlement->id}",
-                            'remarks' => "Return COGS reversal — Invoice #{$invoice->invoice_no}",
-                        ]);
-                    }
+                    $lines[] = ['account_id' => $salesAccount->id, 'debit' => $returnedValueNet, 'credit' => 0, 'narration' => 'Return — sales reversal'];
+                    $lines[] = ['account_id' => $invoice->customer_id, 'debit' => 0, 'credit' => $returnedValueNet, 'narration' => 'Return credited to customer'];
+                }
+
+                if ($returnedCost > 0) {
+                    $lines[] = ['account_id' => $inventoryAccount->id, 'debit' => $returnedCost, 'credit' => 0, 'narration' => 'Return — stock back in'];
+                    $lines[] = ['account_id' => $cogsAccount->id, 'debit' => 0, 'credit' => $returnedCost, 'narration' => 'COGS reversal'];
                 }
 
                 if ($gstReversal > 0) {
-                    Voucher::create([
-                        'date' => $request->settlement_date, 'voucher_type' => 'journal',
-                        'ac_dr_sid' => $gstAccount->id, 'ac_cr_sid' => $invoice->customer_id,
-                        'amount' => $gstReversal, 'reference' => "SR-GST-{$invoice->id}-{$settlement->id}",
-                        'remarks' => "GST reversal on return — Invoice #{$invoice->invoice_no}",
-                    ]);
+                    $lines[] = ['account_id' => $gstAccount->id, 'debit' => $gstReversal, 'credit' => 0, 'narration' => 'GST reversal on return'];
+                    $lines[] = ['account_id' => $invoice->customer_id, 'debit' => 0, 'credit' => $gstReversal, 'narration' => 'GST reversal credited'];
                 }
 
                 if ($whtAmount > 0) {
-                    Voucher::create([
-                        'date' => $request->settlement_date, 'voucher_type' => 'journal',
-                        'ac_dr_sid' => $whtAccount->id, 'ac_cr_sid' => $invoice->customer_id,
-                        'amount' => $whtAmount, 'reference' => "WHT-{$invoice->id}-{$settlement->id}",
-                        'remarks' => "WHT withheld — Invoice #{$invoice->invoice_no}",
-                    ]);
+                    $lines[] = ['account_id' => $whtAccount->id, 'debit' => $whtAmount, 'credit' => 0, 'narration' => 'WHT withheld'];
+                    $lines[] = ['account_id' => $invoice->customer_id, 'debit' => 0, 'credit' => $whtAmount, 'narration' => 'WHT settled against invoice'];
                 }
 
                 if ($cashAllocated > 0) {
-                    Voucher::create([
-                        'date' => $request->settlement_date, 'voucher_type' => 'journal',
-                        'ac_dr_sid' => $clearingAccount->id, 'ac_cr_sid' => $invoice->customer_id,
-                        'amount' => $cashAllocated, 'reference' => "SET-{$invoice->id}-{$settlement->id}",
-                        'remarks' => "Cash collected — Invoice #{$invoice->invoice_no}",
-                    ]);
+                    $lines[] = ['account_id' => $clearingAccount->id, 'debit' => $cashAllocated, 'credit' => 0, 'narration' => 'Cash collected by delivery manager'];
+                    $lines[] = ['account_id' => $invoice->customer_id, 'debit' => 0, 'credit' => $cashAllocated, 'narration' => 'Cash settled against invoice'];
                 }
 
+                if (!empty($lines)) {
+                    VoucherService::postEntries(
+                        [
+                            'voucher_type'   => 'receipt',
+                            'voucher_date'   => $request->settlement_date,
+                            'reference_type' => \App\Models\SaleInvoice::class,
+                            'reference_id'   => $invoice->id,
+                            'remarks'        => "Settlement #{$settlementNo} — Invoice #{$invoice->invoice_no}",
+                        ],
+                        $lines
+                    );
+                }
                 $invoice->update([
                     'paid_amount' => $invoice->paid_amount + $whtAmount + $returnedValueGross + $cashAllocated,
                 ]);
@@ -234,13 +231,19 @@ class SettlementController extends Controller
             $cashAccount     = $this->cashAccount();
             $clearingAccount = ChartOfAccounts::getOrCreateDeliveryClearingAccount($settlement->dispatchTrip->deliveryManager);
 
-            Voucher::create([
-                'date' => now()->toDateString(), 'voucher_type' => 'journal',
-                'ac_dr_sid' => $cashAccount->id, 'ac_cr_sid' => $clearingAccount->id,
-                'amount' => $settlement->total_cash_received,
-                'reference' => "CLR-{$settlement->id}",
-                'remarks' => "Cash cleared to office — Settlement #{$settlement->settlement_no}",
-            ]);
+            VoucherService::postEntries(
+                [
+                    'voucher_type'   => 'receipt',
+                    'voucher_date'   => now()->toDateString(),
+                    'reference_type' => Settlement::class,
+                    'reference_id'   => $settlement->id,
+                    'remarks'        => "Cash cleared to office — Settlement #{$settlement->settlement_no}",
+                ],
+                [
+                    ['account_id' => $cashAccount->id, 'debit' => $settlement->total_cash_received, 'credit' => 0, 'narration' => 'Cash received from delivery manager'],
+                    ['account_id' => $clearingAccount->id, 'debit' => 0, 'credit' => $settlement->total_cash_received, 'narration' => 'Clearing account settled'],
+                ]
+            );
 
             $settlement->update(['cleared_to_office' => true, 'cleared_at' => now(), 'cleared_by' => auth()->id()]);
 

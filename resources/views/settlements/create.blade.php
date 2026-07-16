@@ -5,7 +5,7 @@
 @section('content')
 <div class="row">
   <div class="col">
-    <form action="{{ route('settlements.store', $trip->id) }}" method="POST">
+    <form action="{{ route('dispatch_trips.settle.store', $trip->id) }}" method="POST">      
       @csrf
       <section class="card">
         <header class="card-header">
