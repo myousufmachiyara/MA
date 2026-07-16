@@ -11,7 +11,7 @@
     <section class="card">
       <header class="card-header d-flex justify-content-between">
         <h2 class="card-title">Trip TR-{{ $trip->trip_no }} — {{ $trip->vehicle_no }} — {{ $trip->deliveryManager->name }}</h2>
-        <span class="badge bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
+        <span class="bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
       </header>
 
       <div class="card-body">
@@ -45,13 +45,14 @@
         {{-- ── Orders in this trip ────────────────────────────── --}}
         <h5>Orders in this Trip ({{ $trip->orders->count() }})</h5>
         <table class="table table-bordered table-sm mb-4">
-          <thead><tr><th>Order #</th><th>Customer</th><th>Amount</th><th>Terms</th><th>Status</th>@if($trip->status === 'planned')<th>Action</th>@endif</tr></thead>
+          <thead><tr><th>Order #</th><th>Customer</th><th class="text-end">Qty</th><th class="text-end">Amount</th><th>Terms</th><th>Status</th>@if($trip->status === 'planned')<th>Action</th>@endif</tr></thead>
           <tbody>
             @foreach($trip->orders as $order)
             <tr>
               <td>SO-{{ $order->order_no }}</td>
               <td>{{ $order->customer->name ?? 'N/A' }}</td>
-              <td>{{ number_format($order->total_amount, 2) }}</td>
+              <td class="text-end">{{ number_format($order->items->sum('quantity'), 2) }}</td>
+              <td class="text-end">{{ number_format($order->total_amount, 2) }}</td>
               <td>{{ ucfirst($order->payment_terms) }}</td>
               <td>{{ ucfirst($order->status) }}</td>
               @if($trip->status === 'planned')
@@ -65,6 +66,16 @@
             </tr>
             @endforeach
           </tbody>
+          @if($trip->orders->count() > 0)
+          <tfoot class="table-light fw-bold">
+            <tr>
+              <td colspan="2" class="text-end">Trip Total:</td>
+              <td class="text-end">{{ number_format($trip->orders->sum(fn($o) => $o->items->sum('quantity')), 2) }}</td>
+              <td class="text-end">{{ number_format($trip->orders->sum('total_amount'), 2) }}</td>
+              <td colspan="{{ $trip->status === 'planned' ? 3 : 2 }}"></td>
+            </tr>
+          </tfoot>
+          @endif
         </table>
 
         {{-- ── Stock check ─────────────────────────────────────── --}}
