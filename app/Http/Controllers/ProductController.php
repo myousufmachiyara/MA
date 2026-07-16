@@ -167,7 +167,7 @@ class ProductController extends Controller
             // opening_stock excluded — one-time seed at creation only, not editable here
             $product->update($request->only([
                 'name', 'category_id', 'subcategory_id', 'sku', 'measurement_unit',
-                'description', 'selling_price', 'cost_price', 'is_active'
+                'description', 'selling_price', 'is_active'
             ]));
 
             $handledVariationIds = [];
