@@ -21,4 +21,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->prefix('booker')->group(func
     Route::get('/orders/my', [ApiSaleOrderController::class, 'myOrders']);
     Route::get('/orders/{id}', [ApiSaleOrderController::class, 'show']);
     Route::put('/orders/{id}/cancel', [ApiSaleOrderController::class, 'cancel']);
+
+    Route::post('/customers', [ApiSaleOrderController::class, 'storeCustomer']);
+
 });

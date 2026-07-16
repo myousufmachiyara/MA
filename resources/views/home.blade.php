@@ -296,6 +296,45 @@
 			</div>
 		@endcan
 
+		@can('coa.index')
+			@if(($unreviewedCustomers ?? collect())->count() > 0)
+				<div class="row">
+					<div class="col-12 mb-3">
+					<section class="card border-warning">
+						<header class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+						<h2 class="card-title mb-0">
+							<i class="fas fa-user-plus text-warning me-1"></i>
+							New Customers Added by Bookers
+							<span class="badge bg-warning text-dark ms-1">{{ $unreviewedCustomers->count() }}</span>
+						</h2>
+						</header>
+						<div class="card-body">
+						<table class="table table-sm mb-0">
+							<thead><tr><th>Name</th><th>Phone</th><th>Address</th><th>Added By</th><th></th></tr></thead>
+							<tbody>
+							@foreach($unreviewedCustomers as $c)
+							<tr>
+								<td>{{ $c->name }}</td>
+								<td>{{ $c->contact_no ?? '—' }}</td>
+								<td>{{ $c->address ?? '—' }}</td>
+								<td>{{ optional(\App\Models\User::find($c->created_by))->name ?? 'N/A' }}</td>
+								<td>
+								<form action="{{ route('coa.markReviewed', $c->id) }}" method="POST" class="d-inline">
+									@csrf @method('PUT')
+									<button class="btn btn-sm btn-outline-success">Mark Reviewed</button>
+								</form>
+								</td>
+							</tr>
+							@endforeach
+							</tbody>
+						</table>
+						</div>
+					</section>
+					</div>
+				</div>
+			@endif
+		@endcan
+
 	</div>
 	@endif
 

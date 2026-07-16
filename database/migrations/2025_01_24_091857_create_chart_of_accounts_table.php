@@ -49,6 +49,10 @@ return new class extends Migration
             // ── Deactivate without deleting (preserves ledger history) ──
             $table->boolean('is_active')->default(true);
 
+            $table->boolean('is_reviewed')->default(true);
+            $table->unsignedBigInteger('reviewed_by')->nullable();
+            $table->timestamp('reviewed_at')->nullable();
+
             $table->unsignedBigInteger('created_by');
             $table->unsignedBigInteger('updated_by');
             $table->timestamps(); // Includes created_at and updated_at
@@ -59,6 +63,7 @@ return new class extends Migration
             $table->foreign('created_by')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('linked_user_id')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('reviewed_by')->references('id')->on('users')->nullOnDelete();
 
             // ── Indexes ──────────────────────────────────────────────
             $table->index('account_type');

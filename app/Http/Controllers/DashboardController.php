@@ -74,6 +74,15 @@ class DashboardController extends Controller
             $data['pendingPOsCount'] = (clone $pendingPOsQuery)->count();
             $data['pendingPOs'] = $pendingPOsQuery->latest('order_date')->take(10)->get();
         }
+        
+        // Inside index():
+        if ($user->can('coa.index')) {
+            $data['unreviewedCustomers'] = ChartOfAccounts::where('account_type', 'customer')
+                ->where('is_reviewed', false)
+                ->with('linkedUser') // not applicable here, safe to omit if unused
+                ->latest()
+                ->get();
+        }
 
         return view('home', $data);
     }

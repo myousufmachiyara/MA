@@ -241,4 +241,16 @@ class COAController extends Controller
 
         return $validated;
     }
+
+    public function markReviewed($id)
+    {
+        $account = ChartOfAccounts::findOrFail($id);
+        $account->update([
+            'is_reviewed' => true,
+            'reviewed_by' => auth()->id(),
+            'reviewed_at' => now(),
+        ]);
+
+        return back()->with('success', 'Customer marked as reviewed.');
+    }
 }

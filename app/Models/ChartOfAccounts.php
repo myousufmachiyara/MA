@@ -31,6 +31,9 @@ class ChartOfAccounts extends Model
         'linked_user_id',
         'is_system_account',
         'is_active',
+        'is_reviewed',
+        'reviewed_by',
+        'reviewed_at',
         'created_by',
         'updated_by',
     ];
@@ -45,6 +48,8 @@ class ChartOfAccounts extends Model
         'payables'           => 'decimal:2',
         'credit_limit'       => 'decimal:2',
         'opening_date'       => 'date',
+        'is_reviewed'        => 'boolean',
+        'reviewed_at'        => 'datetime',
     ];
 
     // ── Relationships ──────────────────────────────────────────────
@@ -151,5 +156,20 @@ class ChartOfAccounts extends Model
             'created_by'         => auth()->id() ?? $user->id,
             'updated_by'         => auth()->id() ?? $user->id,
         ]);
+    }
+
+    public static function defaultCustomerSubHeadId(): int
+    {
+        $existing = self::where('account_type', 'customer')->whereNotNull('shoa_id')->value('shoa_id');
+        if ($existing) {
+            return $existing;
+        }
+
+        $subHead = \App\Models\SubHeadOfAccounts::firstOrCreate(
+            ['name' => 'Accounts Receivable'],
+            ['hoa_id' => 1]
+        );
+
+        return $subHead->id;
     }
 }

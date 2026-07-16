@@ -58,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     // Chart of Accounts
     // ─────────────────────────────────────────────────────────────
     Route::put('/coa/{id}/toggle-active', [COAController::class, 'toggleActive'])->name('coa.toggleActive');
+    Route::put('/coa/{id}/mark-reviewed', [COAController::class, 'markReviewed'])->name('coa.markReviewed');
 
     // ─────────────────────────────────────────────────────────────
     // Product Helpers (AJAX)

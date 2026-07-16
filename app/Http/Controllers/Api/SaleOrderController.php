@@ -119,4 +119,55 @@ class SaleOrderController extends Controller
 
         return response()->json(['success' => true, 'data' => $customers]);
     }
+
+    public function storeCustomer(Request $request)
+    {
+        $request->validate([
+            'name'    => 'required|string|max:255',
+            'phone'   => 'nullable|string|max:50',
+            'address' => 'nullable|string|max:250',
+        ]);
+
+        $customer = DB::transaction(function () use ($request) {
+            $subHeadId = ChartOfAccounts::defaultCustomerSubHeadId();
+            $subHead   = \App\Models\SubHeadOfAccounts::findOrFail($subHeadId);
+
+            $prefix    = $subHead->hoa_id . str_pad($subHead->id, 2, '0', STR_PAD_LEFT);
+            $lastCode  = ChartOfAccounts::withTrashed()->where('account_code', 'like', $prefix . '%')->max('account_code');
+            $nextNum   = $lastCode ? (intval(substr($lastCode, strlen($prefix))) + 1) : 1;
+
+            return ChartOfAccounts::create([
+                'shoa_id'      => $subHeadId,
+                'account_code' => $prefix . str_pad($nextNum, 3, '0', STR_PAD_LEFT),
+                'name'         => $request->name,
+                'account_type' => 'customer',
+                'contact_no'   => $request->phone,
+                'address'      => $request->address,
+                'receivables'  => 0,
+                'payables'     => 0,
+                'credit_limit' => 0,
+                'opening_date' => now(),
+                'is_active'    => true,
+                'is_reviewed'  => false, // ← office notification flag
+                'created_by'   => auth()->id(),
+                'updated_by'   => auth()->id(),
+            ]);
+        });
+
+        $request->user()->recordActivity('customer_added', "Added new customer: {$customer->name}", $request, [
+            'customer_id' => $customer->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Customer added successfully.',
+            'data' => [
+                'id'            => $customer->id,
+                'name'          => $customer->name,
+                'address'       => $customer->address,
+                'contact_no'    => $customer->contact_no,
+                'customer_type' => $customer->customer_type,
+            ],
+        ]);
+    }
 }
