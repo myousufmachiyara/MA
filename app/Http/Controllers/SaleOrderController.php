@@ -166,7 +166,7 @@ class SaleOrderController extends Controller
 
         Log::info('[SaleOrder] Updated by manager', ['id' => $id, 'by' => auth()->id()]);
 
-        return back()->with('success', 'Order updated successfully.');
+        return redirect()->route('sale_orders.index')->with('success', "Order SO-{$id} updated successfully.");
     }
 
     public function cancel($id)
