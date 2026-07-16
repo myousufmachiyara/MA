@@ -10,6 +10,7 @@ use App\Models\ProductSubcategory;
 use App\Models\MeasurementUnit;
 use App\Models\ProductVariation;
 use App\Services\StockService;
+use App\Services\CostingService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 
@@ -39,6 +40,7 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'measurement_unit' => 'required|exists:measurement_units,id',
             'selling_price' => 'nullable|numeric|min:0',
+            'cost_price' => 'nullable|numeric|min:0', // ← added
             'opening_stock' => 'nullable|numeric|min:0',
             'is_active' => 'boolean',
         ]);
@@ -60,11 +62,13 @@ class ProductController extends Controller
             if ($hasVariations) {
                 foreach ($request->variations as $variationData) {
                     $initialStock = (float) ($variationData['stock_quantity'] ?? 0);
+                    $initialCost  = (float) ($variationData['cost_price'] ?? 0);
 
                     $variation = $product->variations()->create([
                         'sku' => $variationData['sku'] ?? null,
-                        'stock_quantity' => 0, // seeded via ledger below
+                        'stock_quantity' => 0,
                         'selling_price' => $variationData['selling_price'] ?? 0,
+                        'cost_price' => 0, // set below via CostingService, keeps logic in one place
                     ]);
                     Log::info('[Product Store] Variation created', ['variation_id' => $variation->id, 'product_id' => $product->id, 'data' => $variationData]);
 
@@ -73,6 +77,9 @@ class ProductController extends Controller
                             $product->id, $variation->id, $initialStock, 'in',
                             'opening_stock', $variation->id, 'Opening stock at product creation'
                         );
+
+                        // qtyBefore = 0 (brand-new variation) — this sets the starting cost basis
+                        CostingService::applyIncoming($product->id, $variation->id, 0, $initialStock, $initialCost);
                     }
 
                     if (!empty($variationData['attributes'])) {
@@ -84,10 +91,15 @@ class ProductController extends Controller
                     }
                 }
             } elseif ($request->filled('opening_stock') && (float) $request->opening_stock > 0) {
+                $initialStock = (float) $request->opening_stock;
+                $initialCost  = (float) ($request->cost_price ?? 0);
+
                 StockService::move(
-                    $product->id, null, (float) $request->opening_stock, 'in',
+                    $product->id, null, $initialStock, 'in',
                     'opening_stock', $product->id, 'Opening stock at product creation'
                 );
+
+                CostingService::applyIncoming($product->id, null, 0, $initialStock, $initialCost);
             }
 
             DB::commit();
@@ -155,7 +167,7 @@ class ProductController extends Controller
             // opening_stock excluded — one-time seed at creation only, not editable here
             $product->update($request->only([
                 'name', 'category_id', 'subcategory_id', 'sku', 'measurement_unit',
-                'description', 'selling_price', 'is_active'
+                'description', 'selling_price', 'cost_price', 'is_active'
             ]));
 
             $handledVariationIds = [];
@@ -181,11 +193,13 @@ class ProductController extends Controller
             if (is_array($request->new_variations)) {
                 foreach ($request->new_variations as $newVar) {
                     $initialStock = (float) ($newVar['stock_quantity'] ?? 0);
+                    $initialCost  = (float) ($newVar['cost_price'] ?? 0);
 
                     $variation = $product->variations()->create([
                         'sku' => $newVar['sku'],
                         'stock_quantity' => 0,
                         'selling_price' => $newVar['selling_price'] ?? 0,
+                        'cost_price' => 0,
                     ]);
 
                     if ($initialStock > 0) {
@@ -193,6 +207,8 @@ class ProductController extends Controller
                             $product->id, $variation->id, $initialStock, 'in',
                             'opening_stock', $variation->id, 'Opening stock — new variation added'
                         );
+
+                        CostingService::applyIncoming($product->id, $variation->id, 0, $initialStock, $initialCost);
                     }
 
                     if (!empty($newVar['attributes'])) {

@@ -63,6 +63,13 @@
             </div>
 
             <div class="col-md-2">
+              <label>Cost Price / Unit</label>
+              <input type="number" step="any" name="cost_price" id="parent_cost_price" class="form-control" value="{{ old('cost_price', '0.00') }}">
+              <small class="text-muted" id="cost_price_note">Used only if this product has no variations below.</small>
+              @error('cost_price')<div class="text-danger">{{ $message }}</div>@enderror
+            </div>
+
+            <div class="col-md-2">
               <label>Selling Price / Unit</label>
               <input type="number" step="any" name="selling_price" id="parent_selling_price" class="form-control" value="{{ old('selling_price', '0.00') }}">
               <small class="text-muted" id="selling_price_note">Used only if this product has no variations below.</small>
@@ -121,6 +128,7 @@
                   <tr>
                     <th>Variation</th>
                     <th>SKU</th>
+                    <th>Cost Price</th>
                     <th>Selling Price</th>
                     <th>Stock</th>
                     <th>Action</th>
@@ -191,8 +199,8 @@
     // Grey out the parent price once variations exist — it's not used for variable products
     function toggleParentPriceState() {
       const hasVariations = $('#variationsTable tbody tr').length > 0;
-      $('#parent_selling_price').prop('disabled', hasVariations);
-      $('#selling_price_note')
+      $('#parent_selling_price, #parent_cost_price').prop('disabled', hasVariations);
+      $('#selling_price_note, #cost_price_note')
         .text(hasVariations
           ? 'Not used — each variation below has its own price.'
           : 'Used only if this product has no variations below.')

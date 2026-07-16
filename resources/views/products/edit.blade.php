@@ -68,6 +68,16 @@
             </div>
 
             <div class="col-md-2">
+              <label>Cost Price / Unit</label>
+              <input type="number" step="any" name="cost_price" id="parent_cost_price" class="form-control"
+                value="{{ old('cost_price', $product->cost_price) }}"
+                {{ $product->variations->count() > 0 ? 'disabled' : '' }}>
+              <small class="text-muted" style="{{ $product->variations->count() > 0 ? 'color:#dc3545' : '' }}">
+                {{ $product->variations->count() > 0 ? 'Not used — each variation below has its own price.' : 'Used only if this product has no variations below.' }}
+              </small>
+            </div>
+
+            <div class="col-md-2">
               <label>Selling Price / Unit</label>
               <input type="number" step="any" name="selling_price" id="parent_selling_price" class="form-control"
                 value="{{ old('selling_price', $product->selling_price) }}"
@@ -108,6 +118,10 @@
                       <div class="col-md-3">
                         <label>SKU</label>
                         <input type="text" name="variations[{{ $i }}][sku]" class="form-control sku-field" value="{{ $variation->sku }}">
+                      </div>
+                      <div class="col-md-2">
+                        <label>Cost Price</label>
+                        <input type="number" step="any" name="new_variations[${newVariationIndex}][cost_price]" value="0.00" class="form-control">
                       </div>
                       <div class="col-md-2">
                         <label>Selling Price</label>
