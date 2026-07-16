@@ -51,7 +51,7 @@ class ProductController extends Controller
             // opening_stock deliberately excluded — seeds the ledger below, not stored on the row
             $productData = $request->only([
                 'name', 'category_id', 'subcategory_id', 'sku', 'description',
-                'measurement_unit', 'selling_price', 'is_active'
+                'measurement_unit', 'cost_price', 'selling_price', 'is_active'
             ]);
 
             $product = Product::create($productData);
