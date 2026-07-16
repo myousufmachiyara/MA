@@ -54,7 +54,7 @@
                   </select>
                 </td>
                 <td>
-                  <select name="items[0][variation_id]" id="variation1" class="form-control select2-js">
+                  <select name="items[0][variation_id]" id="variation1" class="form-control select2-js" onchange="onVariationChange(this)">
                     <option value="">No Variation</option>
                   </select>
                 </td>
@@ -112,7 +112,7 @@
           ${products.map(p => `<option value="${p.id}" data-unit-id="${p.measurement_unit}" data-price="${p.selling_price}">${p.name}</option>`).join('')}
         </select>
       </td>
-      <td><select name="items[${rowIndex}][variation_id]" id="variation${index}" class="form-control select2-js"><option value="">No Variation</option></select></td>
+      <td><select name="items[${rowIndex}][variation_id]" id="variation${index}" class="form-control select2-js" onchange="onVariationChange(this)"><option value="">No Variation</option></select></td>
       <td><input type="number" name="items[${rowIndex}][quantity]" id="qty${index}" class="form-control quantity" value="0" step="any" onchange="rowTotal(${index})"></td>
       <td>
         <select name="items[${rowIndex}][unit]" id="unit${index}" class="form-control" required>
@@ -175,23 +175,15 @@
     }
   }
 
-    // Auto-fill price from variation's own selling_price when a variation is picked
-    $(document).on('select2:select change', 'select[id^="variation"]', function (e) {
-    console.log('Variation handler fired', this.id, e.type);
+  function onVariationChange(el) {
+    const rowIndex = el.id.match(/\d+$/)[0];
+    const selectedOption = el.options[el.selectedIndex];
+    const variationPrice = selectedOption ? selectedOption.getAttribute('data-price') : null;
 
-    const rowIndex = this.id.match(/\d+$/)[0];
-    const selectedOption = $(this).find('option:selected');
-    const variationPrice = selectedOption.attr('data-price');
-
-    console.log('rowIndex:', rowIndex, 'variationPrice:', variationPrice, 'price field exists:', $(`#price${rowIndex}`).length);
-
-    if (variationPrice !== undefined && variationPrice !== '') {
+    if (variationPrice !== null && variationPrice !== '') {
       $(`#price${rowIndex}`).val(parseFloat(variationPrice).toFixed(2));
       rowTotal(rowIndex);
-      console.log('Price field updated to:', $(`#price${rowIndex}`).val());
-    } else {
-      console.log('variationPrice was empty/undefined — nothing written');
     }
-});
+  }
 </script>
 @endsection
