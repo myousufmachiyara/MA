@@ -170,4 +170,64 @@ class SaleOrderController extends Controller
             ],
         ]);
     }
+
+    public function update(Request $request, $id)
+    {
+        $order = SaleOrder::with('items')
+            ->where('booker_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if (!in_array($order->status, ['draft', 'confirmed'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This order can no longer be edited — it has already been merged into a dispatch trip.',
+            ], 422);
+        }
+
+        $request->validate([
+            'customer_id'           => 'required|exists:chart_of_accounts,id',
+            'payment_terms'         => 'required|in:cash,credit',
+            'remarks'               => 'nullable|string',
+            'items'                 => 'required|array|min:1',
+            'items.*.item_id'       => 'required|exists:products,id',
+            'items.*.variation_id'  => 'nullable|exists:product_variations,id',
+            'items.*.quantity'      => 'required|numeric|min:0.01',
+            'items.*.unit'          => 'required|exists:measurement_units,id',
+            'items.*.price'         => 'required|numeric|min:0',
+        ]);
+
+        DB::transaction(function () use ($order, $request) {
+            $order->update([
+                'customer_id'   => $request->customer_id,
+                'payment_terms' => $request->payment_terms,
+                'remarks'       => $request->remarks,
+            ]);
+
+            $order->items()->delete();
+
+            $totalAmount = 0;
+            $totalQty    = 0;
+
+            foreach ($request->items as $itemData) {
+                $qty   = (float) $itemData['quantity'];
+                $price = (float) $itemData['price'];
+                $totalAmount += $qty * $price;
+                $totalQty    += $qty;
+
+                $order->items()->create([
+                    'item_id'      => $itemData['item_id'],
+                    'variation_id' => $itemData['variation_id'] ?? null,
+                    'quantity'     => $qty,
+                    'unit'         => $itemData['unit'],
+                    'price'        => $price,
+                ]);
+            }
+
+            $order->update(['total_amount' => $totalAmount, 'total_quantity' => $totalQty]);
+        });
+
+        $request->user()->recordActivity('order_edited', "Edited order #{$order->order_no}", $request);
+
+        return response()->json(['success' => true, 'message' => 'Order updated successfully.']);
+    }
 }
