@@ -202,12 +202,12 @@
               <input type="text" name="new_variations[${newVariationIndex}][sku]" class="form-control sku-field">
             </div>
             <div class="col-md-2">
-              <label>Selling Price</label>
-              <input type="number" step="any" name="new_variations[${newVariationIndex}][selling_price]" value="0.00" class="form-control">
-            </div>
-            <div class="col-md-2">
               <label>Cost Price</label>
               <input type="number" step="any" name="new_variations[${newVariationIndex}][cost_price]" value="0.00" class="form-control">
+            </div>
+            <div class="col-md-2">
+              <label>Selling Price</label>
+              <input type="number" step="any" name="new_variations[${newVariationIndex}][selling_price]" value="0.00" class="form-control">
             </div>
             <div class="col-md-2">
               <label>Stock</label>
