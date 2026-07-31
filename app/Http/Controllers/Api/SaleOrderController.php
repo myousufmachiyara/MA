@@ -230,4 +230,17 @@ class SaleOrderController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Order updated successfully.']);
     }
+
+    /**
+     * Single order detail — used by the mobile app's edit flow to prefill
+     * the form with customer, items, product/variation names, and prices.
+     */
+    public function show(Request $request, $id)
+    {
+        $order = SaleOrder::with(['items.product', 'items.variation', 'customer'])
+            ->where('booker_id', $request->user()->id)
+            ->findOrFail($id);
+
+        return response()->json(['success' => true, 'data' => $order]);
+    }
 }
