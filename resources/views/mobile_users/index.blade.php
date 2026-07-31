@@ -213,15 +213,23 @@
 </div>
 
 <script>
+// Route templates generated server-side — always correct, regardless of
+// whether the underlying path is hyphenated or underscored.
+const mobileUserShowUrlTemplate   = "{{ route('mobile_users.show', ['id' => ':id']) }}";
+const mobileUserUpdateUrlTemplate = "{{ route('mobile_users.update', ['id' => ':id']) }}";
+
 function openEditModal(id) {
-    fetch('/mobile-users/' + id, {
+    const showUrl = mobileUserShowUrlTemplate.replace(':id', id);
+
+    fetch(showUrl, {
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(res => res.json())
     .then(res => {
         if (!res.status) { alert('Booker not found.'); return; }
         const u = res.data;
-        document.getElementById('editBookerForm').action = '/mobile-users/' + u.id;
+
+        document.getElementById('editBookerForm').action = mobileUserUpdateUrlTemplate.replace(':id', id);
         document.getElementById('edit_name').value = u.name;
         document.getElementById('edit_phone').value = u.phone;
         document.getElementById('edit_employee_code').value = u.employee_code ?? '';
