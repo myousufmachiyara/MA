@@ -51,13 +51,13 @@
                       - $invoice->discount
                   , 2) }}
                 </td>
-                <td>
+                {{-- <td>
                   @if($invoice->dispatch_trip_id)
                     <span class="badge bg-info text-dark">Trip TR-{{ $invoice->dispatchTrip->trip_no ?? '' }}</span>
                   @else
                     <span class="badge bg-secondary">Manual</span>
                   @endif
-                </td>
+                </td> --}}
                 <td>
                   <a href="{{ route('sale_invoices.print', $invoice->id) }}" target="_blank" title="Print"><i class="fas fa-print"></i></a>
                   @if(!$invoice->dispatch_trip_id)
