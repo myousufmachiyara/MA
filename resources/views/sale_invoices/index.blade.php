@@ -37,7 +37,7 @@
             <tr>
                 <td>{{ $loop->iteration }}</td>
                 <td>{{ $invoice->invoice_date }}</td>
-                <td>{{ $invoice->account->name ?? 'POS Customer' }}</td>
+                <td>{{ $invoice->customer->name ?? 'POS Customer' }}</td>
                 <td>
                     <span class="badge {{ $invoice->type === 'credit' ? 'bg-warning' : 'bg-success' }}">{{ ucfirst($invoice->type) }}</span>
                 </td>
