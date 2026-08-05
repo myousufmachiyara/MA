@@ -469,7 +469,7 @@ class SaleInvoiceController extends Controller
 
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">
             <thead><tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                <th width="5%">#</th><th width="35%">Item</th><th width="15%">Variation</th>
+                <th width="5%">#</th><th width="20%">Item</th><th width="30%">Variation</th>
                 <th width="10%">Qty</th><th width="15%">Price</th><th width="20%">Total</th>
             </tr></thead><tbody>';
 
@@ -477,8 +477,8 @@ class SaleInvoiceController extends Controller
             $lineTotal = $item->quantity * $item->price;
             $html .= '<tr>
                 <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="35%">' . e($item->product->name ?? '-') . '</td>
-                <td width="15%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td width="20%">' . e($item->product->name ?? '-') . '</td>
+                <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
                 <td width="10%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
                 <td width="15%" style="text-align:right;">' . number_format($item->price, 2) . '</td>
                 <td width="20%" style="text-align:right;">' . number_format($lineTotal, 2) . '</td>
