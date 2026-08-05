@@ -36,7 +36,7 @@
             @foreach ($invoices as $invoice)
             <tr>
                 <td>{{ $loop->iteration }}</td>
-                <td>{{ $invoice->date }}</td>
+                <td>{{ $invoice->invoice_date }}</td>
                 <td>{{ $invoice->account->name ?? 'POS Customer' }}</td>
                 <td>
                     <span class="badge {{ $invoice->type === 'credit' ? 'bg-warning' : 'bg-success' }}">{{ ucfirst($invoice->type) }}</span>
@@ -71,7 +71,7 @@
                     </form>
                     @endcan
                   @endif
-</td>
+                </td>
             </tr>
             @endforeach
             </tbody>
