@@ -15,9 +15,12 @@ use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Traits\HasPdfCompanyHeader;
 
 class DispatchTripController extends Controller
 {
+    use HasPdfCompanyHeader;
+    
     private function inventoryAccount(): ChartOfAccounts
     {
         return ChartOfAccounts::where('account_code', '104001')->firstOrFail();
@@ -104,6 +107,9 @@ class DispatchTripController extends Controller
         $availableOrders = SaleOrder::with('customer', 'items.product')
             ->where('status', 'confirmed')
             ->latest()->get();
+        $itemSummary = collect($requirements)->map(fn ($r) => [
+            'name' => $r['name'], 'required' => $r['required'], 'available' => $r['available'],
+        ])->values();
 
         // Stock check: aggregate required qty across all orders currently in this trip
         $requirements = [];
@@ -125,7 +131,81 @@ class DispatchTripController extends Controller
 
         return view('dispatch_trips.show', compact('trip', 'availableOrders', 'requirements'));
     }
+    
+    public function loadSheet($id)
+    {
+        $trip = DispatchTrip::with(['orders.items.product', 'orders.items.variation', 'deliveryManager'])
+            ->findOrFail($id);
 
+        $rows = [];
+        foreach ($trip->orders as $order) {
+            foreach ($order->items as $item) {
+                $key = $item->item_id . '-' . ($item->variation_id ?? 0);
+
+                if (!isset($rows[$key])) {
+                    $rows[$key] = [
+                        'product'   => $item->product->name ?? 'N/A',
+                        'pack_size' => $item->variation->sku ?? '—',
+                        'qty'       => 0,
+                    ];
+                }
+                $rows[$key]['qty'] += $item->quantity;
+            }
+        }
+
+        $rows = collect($rows)->sortBy('product')->values();
+
+        $pdf = new \TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf->SetCreator('BillTrix');
+        $pdf->SetTitle('Load Summary — TR-' . $trip->trip_no);
+        $pdf->setPrintHeader(false);
+        $pdf->setPrintFooter(false);
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 20);
+        $pdf->AddPage();
+
+        $this->addCompanyHeader($pdf, 'LOAD SUMMARY');
+
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->Cell(0, 5, 'Trip #: TR-' . $trip->trip_no, 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Date: ' . \Carbon\Carbon::parse($trip->trip_date)->format('d-M-Y'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Vehicle: ' . $trip->vehicle_no, 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Delivery Manager: ' . ($trip->deliveryManager->name ?? 'N/A'), 0, 1, 'L');
+        $pdf->Ln(4);
+
+        $html = '<table border="1" cellpadding="5" style="font-size:10px;">
+            <thead>
+                <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
+                    <th width="10%">S.No</th>
+                    <th width="50%">Product Description</th>
+                    <th width="20%">Pack Size</th>
+                    <th width="20%">No. of Cases</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        $totalCases = 0;
+        foreach ($rows as $i => $row) {
+            $totalCases += $row['qty'];
+            $html .= '<tr>
+                <td width="10%" style="text-align:center;">' . ($i + 1) . '</td>
+                <td width="50%">' . e($row['product']) . '</td>
+                <td width="20%" style="text-align:center;">' . e($row['pack_size']) . '</td>
+                <td width="20%" style="text-align:center;">' . number_format($row['qty'], 0) . '</td>
+            </tr>';
+        }
+
+        $html .= '<tr style="font-weight:bold;background-color:#fafafa;">
+                <td colspan="3" style="text-align:right;">Total Cases</td>
+                <td style="text-align:center;">' . number_format($totalCases, 0) . '</td>
+            </tr>
+            </tbody>
+        </table>';
+
+        $pdf->writeHTML($html, true, false, false, false, '');
+
+        return $pdf->Output('LoadSummary_TR' . $trip->trip_no . '.pdf', 'I');
+    }
     /**
      * Add selected confirmed orders into this trip.
      */

@@ -60,6 +60,12 @@
                                 <td class="text-danger">{{ $adj->total_decrease_value > 0 ? '-' . number_format($adj->total_decrease_value, 2) : '—' }}</td>
                                 <td>{{ $adj->creator->name ?? 'N/A' }}</td>
                                 <td>
+                                    @php $voucher = $adj->vouchers()->latest()->first(); @endphp
+                                    @if($voucher)
+                                    <a href="{{ route('vouchers.print', ['type' => $voucher->voucher_type, 'id' => $voucher->id]) }}" target="_blank" class="text-success me-1" title="GL Impact">
+                                        <i class="fas fa-book"></i>
+                                    </a>
+                                    @endif
                                     <a href="{{ route('stock_adjustments.show', $adj->id) }}" class="text-primary" title="View"><i class="fas fa-eye"></i></a>
                                 </td>
                             </tr>

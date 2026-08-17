@@ -110,6 +110,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', [SaleOrderController::class, 'edit'])->middleware('check.permission:sale_orders.edit')->name('edit');
         Route::put('/{id}', [SaleOrderController::class, 'update'])->middleware('check.permission:sale_orders.edit')->name('update');
         Route::put('/{id}/cancel', [SaleOrderController::class, 'cancel'])->middleware('check.permission:sale_orders.edit')->name('cancel');
+        Route::get('/export/pdf', [SaleOrderController::class, 'exportPdf'])->middleware('check.permission:sale_orders.print')->name('export.pdf');
+        Route::get('/export/excel', [SaleOrderController::class, 'exportExcel'])->middleware('check.permission:sale_orders.print')->name('export.excel');
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -197,7 +199,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [StockMovementController::class, 'index'])->middleware('check.permission:stock_movements.index')->name('index');
         Route::get('/{itemId}', [StockMovementController::class, 'show'])->middleware('check.permission:stock_movements.index')->name('show');
     });
-
+    Route::resource('advance_payments', AdvancePaymentController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('/advance_payments/{id}/adjust', [AdvancePaymentController::class, 'adjust'])->name('advance_payments.adjust');
+    Route::get('/advance_payments/{id}/open-invoices', [AdvancePaymentController::class, 'openInvoices'])->name('advance_payments.openInvoices');
+    Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
+    Route::get('/sale_adjustment_notes/search-invoices', [SaleAdjustmentNoteController::class, 'searchInvoices'])->name('sale_adjustment_notes.searchInvoices');
     // ─────────────────────────────────────────────────────────────
     // Generic CRUD modules — controllers here genuinely support the
     // full index/create/store/show/edit/update/destroy/print set
@@ -267,4 +273,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('sale', [SalesReportController::class, 'saleReports'])->name('sale');
         Route::get('accounts', [AccountsReportController::class, 'accounts'])->name('accounts');
     });
+
+    Route::get('/sale_invoices/{id}/thermal-receipt', [SaleInvoiceController::class, 'thermalReceipt'])->middleware('check.permission:sale_invoices.print')->name('sale_invoices.thermalReceipt');
+    Route::get('/settings/thermal-printer', function () { return view('settings.thermal_printer'); })->name('settings.thermalPrinter');
 });

@@ -37,7 +37,7 @@ class PurchaseInvoiceController extends Controller
     public function index(Request $request)
     {
         $user  = auth()->user();
-        $query = PurchaseInvoice::with(['vendor', 'attachments', 'purchaseOrder']);
+        $query = PurchaseInvoice::with(['vendor', 'attachments', 'purchaseOrder', 'vouchers']);
 
         if ($request->has('view_deleted')) {
             $query->onlyTrashed();
@@ -508,20 +508,11 @@ class PurchaseInvoiceController extends Controller
         $pdf->SetAutoPageBreak(true, 20);
         $pdf->AddPage();
 
-        $logoPath = public_path('assets/img/logo.png');
-        if (file_exists($logoPath)) {
-            $pdf->Image($logoPath, 15, 12, 35);
-        }
-
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->SetXY(110, 12);
-        $pdf->Cell(85, 10, 'PURCHASE INVOICE', 0, 1, 'R');
+        $this->addCompanyHeader($pdf, 'PURCHASE INVOICE');
 
         $pdf->SetFont('helvetica', '', 10);
-        $pdf->SetXY(110, 20);
-        $pdf->Cell(85, 5, 'Invoice #: ' . $invoice->invoice_no, 0, 1, 'R');
-        $pdf->SetX(110);
-        $pdf->Cell(85, 5, 'Date: ' . Carbon::parse($invoice->invoice_date)->format('d-M-Y'), 0, 1, 'R');
+        $pdf->Cell(0, 5, 'Invoice #: ' . $invoice->invoice_no, 0, 1, 'R');
+        $pdf->Cell(0, 5, 'Date: ' . Carbon::parse($invoice->invoice_date)->format('d-M-Y'), 0, 1, 'R');
         $pdf->Ln(5);
 
         $vendorHtml = '

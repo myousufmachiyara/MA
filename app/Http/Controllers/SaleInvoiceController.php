@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Services\ThermalReceiptService;
 
 class SaleInvoiceController extends Controller
 {
@@ -40,7 +41,7 @@ class SaleInvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $query = SaleInvoice::with(['customer', 'dispatchTrip', 'location']);
+        $query = SaleInvoice::with(['customer', 'dispatchTrip', 'vouchers']);
 
         if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
@@ -51,9 +52,10 @@ class SaleInvoiceController extends Controller
                 : $query->whereNotNull('dispatch_trip_id');
         }
 
-        $invoices = $query->latest()->get();
+        $invoices  = $query->latest()->get();
+        $customers = ChartOfAccounts::where('account_type', 'customer')->orderBy('name')->get();
 
-        return view('sale_invoices.index', compact('invoices'));
+        return view('sale_invoices.index', compact('invoices', 'customers'));
     }
 
     public function create()
@@ -453,8 +455,8 @@ class SaleInvoiceController extends Controller
         $pdf->SetAutoPageBreak(true, 20);
         $pdf->AddPage();
 
-        $pdf->SetFont('helvetica', 'B', 16);
-        $pdf->Cell(0, 10, 'SALE INVOICE' . ($invoice->is_tax_invoice ? ' (TAX INVOICE)' : ''), 0, 1, 'R');
+        $this->addCompanyHeader($pdf, 'SALE INVOICE' . ($invoice->is_tax_invoice ? ' (TAX INVOICE)' : ''));
+
         $pdf->SetFont('helvetica', '', 10);
         $pdf->Cell(0, 5, 'Invoice #: ' . $invoice->invoice_no, 0, 1, 'R');
         $pdf->Cell(0, 5, 'Date: ' . Carbon::parse($invoice->invoice_date)->format('d-M-Y'), 0, 1, 'R');
@@ -498,5 +500,16 @@ class SaleInvoiceController extends Controller
         $pdf->writeHTML($html, true, false, false, false, '');
 
         return $pdf->Output('SI_' . $invoice->invoice_no . '.pdf', 'I');
+    }
+
+    public function thermalReceipt($id)
+    {
+        $invoice = SaleInvoice::with(['items.product', 'items.variation', 'customer'])->findOrFail($id);
+        $escposData = ThermalReceiptService::buildSaleInvoiceReceipt($invoice);
+
+        return response()->json([
+            'success' => true,
+            'data'    => base64_encode($escposData),
+        ]);
     }
 }

@@ -16,8 +16,8 @@
                 @endcan
             </header>
             <div class="card-body">
-                <form method="GET" class="row mb-3">
-                    <div class="col-md-3">
+                <form method="GET" class="row mb-3 g-2">
+                    <div class="col-md-2">
                         <select name="status" class="form-control" onchange="this.form.submit()">
                             <option value="all">All Statuses</option>
                             <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Confirmed (ready to merge)</option>
@@ -26,13 +26,30 @@
                             <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <select name="booker_id" class="form-control" onchange="this.form.submit()">
                             <option value="">All Bookers</option>
                             @foreach($bookers as $booker)
                                 <option value="{{ $booker->id }}" {{ request('booker_id') == $booker->id ? 'selected' : '' }}>{{ $booker->name }}</option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}" placeholder="From">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}" placeholder="To">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
+                    </div>
+                    <div class="col-md-2 gap-1">
+                        <a href="{{ route('sale_orders.export.pdf', request()->query()) }}" target="_blank" class="btn btn-danger flex-fill" title="Export PDF">
+                            <i class="fas fa-file-pdf"></i>
+                        </a>
+                        <a href="{{ route('sale_orders.export.excel', request()->query()) }}" class="btn btn-success flex-fill" title="Export Excel">
+                            <i class="fas fa-file-excel"></i>
+                        </a>
                     </div>
                 </form>
 

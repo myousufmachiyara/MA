@@ -35,6 +35,7 @@ return new class extends Migration
             $table->decimal('total_amount', 15, 2)->default(0); // incl. GST — what customer owes
             $table->decimal('cogs_amount', 15, 2)->default(0);
             $table->decimal('paid_amount', 15, 2)->default(0);  // updated by Settlement later
+            $table->decimal('net_adjustment', 15, 2)->default(0);
 
             $table->text('remarks')->nullable();
             $table->unsignedBigInteger('created_by');

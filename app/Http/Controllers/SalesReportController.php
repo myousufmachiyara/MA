@@ -130,4 +130,31 @@ class SalesReportController extends Controller
             ->sortByDesc('total_amount')
             ->values();
     }
+
+    private function monthlySummary(Request $request)
+    {
+        $year = $request->filled('year') ? (int) $request->year : now()->year;
+
+        $invoices = SaleInvoice::whereYear('invoice_date', $year)->get();
+
+        $monthly = collect(range(1, 12))->map(function ($month) use ($invoices) {
+            $monthInvoices = $invoices->filter(fn ($i) => \Carbon\Carbon::parse($i->invoice_date)->month == $month);
+            return [
+                'month'   => \Carbon\Carbon::create()->month($month)->format('F'),
+                'count'   => $monthInvoices->count(),
+                'amount'  => $monthInvoices->sum('total_amount'),
+                'cogs'    => $monthInvoices->sum('cogs_amount'),
+                'profit'  => $monthInvoices->sum('total_amount') - $monthInvoices->sum('cogs_amount'),
+            ];
+        });
+
+        $bookerBreakdown = SaleOrder::whereYear('order_date', $year)
+            ->where('status', 'invoiced')
+            ->with('booker')
+            ->get()
+            ->groupBy(fn ($o) => $o->booker->name ?? 'N/A')
+            ->map(fn ($group) => ['count' => $group->count(), 'amount' => $group->sum('total_amount')]);
+
+        return ['year' => $year, 'monthly' => $monthly, 'bookerBreakdown' => $bookerBreakdown];
+    }
 }

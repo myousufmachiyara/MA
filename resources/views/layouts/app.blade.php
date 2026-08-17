@@ -359,6 +359,62 @@
                 });
         })();
         </script>
+        <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.js"></script>
+        <script>
+        if (typeof qz !== 'undefined') {
+            // Unsigned mode — shows a one-time "Allow" prompt in QZ Tray per session.
+            // Replace with a real certificate later to remove this prompt entirely.
+            qz.security.setCertificatePromise(function (resolve) { resolve(); });
+            qz.security.setSignaturePromise(function () {
+            return function (resolve) { resolve(); };
+            });
+        }
 
+        async function ensureQzConnected() {
+            if (typeof qz === 'undefined') {
+            throw new Error('QZ Tray script failed to load.');
+            }
+            if (!qz.websocket.isActive()) {
+            await qz.websocket.connect();
+            }
+        }
+
+        async function listThermalPrinters() {
+            await ensureQzConnected();
+            return qz.printers.find();
+        }
+
+        function getDefaultThermalPrinter() {
+            return localStorage.getItem('thermal_printer_name');
+        }
+
+        function setDefaultThermalPrinter(name) {
+            localStorage.setItem('thermal_printer_name', name);
+        }
+
+        async function printThermalReceiptFromUrl(fetchUrl) {
+            try {
+            await ensureQzConnected();
+
+            let printerName = getDefaultThermalPrinter();
+            if (!printerName) {
+                alert('No default thermal printer selected yet. Please set one from Settings → Thermal Printer.');
+                return;
+            }
+
+            const res = await fetch(fetchUrl);
+            const json = await res.json();
+            if (!json.success) { alert('Could not load receipt data.'); return; }
+
+            const config = qz.configs.create(printerName);
+            const data = [{ type: 'raw', format: 'base64', data: json.data }];
+
+            await qz.print(config, data);
+            } catch (err) {
+            console.error(err);
+            alert('QZ Tray printing failed: ' + err + '\n\nMake sure QZ Tray is installed and running on this PC.');
+            }
+        }
+        </script>
     </body>
 </html>

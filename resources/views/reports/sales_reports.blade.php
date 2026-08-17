@@ -15,6 +15,7 @@
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#dispatch_report" role="tab">Dispatch Reports</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#item_wise" role="tab">Item-wise Sale</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#customer_wise" role="tab">Customer-wise Sale</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#monthly_summary" role="tab">Monthly Summary</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#sale_return" role="tab">Sale Return</a></li>
     </ul>
 
@@ -275,7 +276,32 @@
             </div>
         </div>
 
-        {{-- ══════════════════ TAB 5: SALE RETURN (pending finalization) ══════════════════ --}}
+        {{-- ══════════════════ TAB 6: MONTHLY SUMMARY) ══════════════════ --}}
+        <div class="tab-pane fade" id="monthly_summary" role="tabpanel">
+            <form method="GET" class="mb-3"><input type="hidden" name="tab" value="monthly_summary">
+                <input type="number" name="year" value="{{ $reports['monthly_summary']['year'] }}" class="form-control d-inline-block w-auto">
+                <button class="btn btn-primary">Go</button>
+            </form>
+            <table class="table table-bordered table-sm">
+                <thead class="table-dark"><tr><th>Month</th><th class="text-end">Invoices</th><th class="text-end">Sales</th><th class="text-end">COGS</th><th class="text-end">Gross Profit</th></tr></thead>
+                <tbody>
+                @foreach($reports['monthly_summary']['monthly'] as $m)
+                <tr><td>{{ $m['month'] }}</td><td class="text-end">{{ $m['count'] }}</td><td class="text-end">{{ number_format($m['amount'],2) }}</td><td class="text-end">{{ number_format($m['cogs'],2) }}</td><td class="text-end">{{ number_format($m['profit'],2) }}</td></tr>
+                @endforeach
+                </tbody>
+            </table>
+            <h5 class="mt-4">By Booker</h5>
+            <table class="table table-bordered table-sm">
+                <thead class="table-dark"><tr><th>Booker</th><th class="text-end">Orders Invoiced</th><th class="text-end">Total Sales</th></tr></thead>
+                <tbody>
+                @foreach($reports['monthly_summary']['bookerBreakdown'] as $name => $data)
+                <tr><td>{{ $name }}</td><td class="text-end">{{ $data['count'] }}</td><td class="text-end">{{ number_format($data['amount'],2) }}</td></tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        {{-- ══════════════════ TAB 6: SALE RETURN (pending finalization) ══════════════════ --}}
         <div class="tab-pane fade" id="sale_return" role="tabpanel">
             <div class="alert alert-info">
                 <i class="fas fa-info-circle me-1"></i>

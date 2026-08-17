@@ -203,17 +203,7 @@ class VoucherController extends Controller
         $pdf->AddPage();
         $pdf->setCellPadding(1.5);
 
-        $logoPath = public_path('assets/img/logo.png');
-        if (file_exists($logoPath)) {
-            $pdf->Image($logoPath, 12, 8, 40);
-        }
-
-        $pdf->SetFont('helvetica', 'B', 14);
-        $pdf->SetXY(120, 12);
-        $pdf->Cell(80, 8, ucfirst($type) . ' Voucher', 0, 1, 'R');
-
-        $pdf->Ln(5);
-        $pdf->SetFont('helvetica', '', 10);
+        $this->addCompanyHeader($pdf, ucfirst($type) . ' Voucher');
 
         $infoHtml = '
         <table cellpadding="3" cellspacing="0" width="60%">

@@ -80,6 +80,9 @@
         @endif
 
         <div class="table-responsive">
+          <div class="mb-3">
+            <input type="text" id="voucherSearch" class="form-control" placeholder="Search by voucher #, account, or remarks...">
+          </div>
           <table class="table table-bordered table-striped mb-0" id="voucher-datatable">
             <thead>
               <tr>
@@ -282,7 +285,7 @@
                     @endif
                   </small>
                 </label>
-                <select class="form-control select2-js" name="ac_dr_sid" id="add_ac_dr_sid" required>
+                <select data-plugin-selecttwo class="form-control select2-js" name="ac_dr_sid" id="add_ac_dr_sid" required>
                   <option value="" disabled selected>Select Account</option>
                   @foreach($accounts->groupBy('account_type') as $groupType => $groupAccounts)
                     <optgroup label="{{ ucfirst($groupType) }}">
@@ -304,7 +307,7 @@
                     @endif
                   </small>
                 </label>
-                <select class="form-control select2-js" name="ac_cr_sid" id="add_ac_cr_sid" required>
+                <select data-plugin-selecttwo class="form-control select2-js" name="ac_cr_sid" id="add_ac_cr_sid" required>
                   <option value="" disabled selected>Select Account</option>
                   @foreach($accounts->groupBy('account_type') as $groupType => $groupAccounts)
                     <optgroup label="{{ ucfirst($groupType) }}">
@@ -486,6 +489,12 @@
 </div>
 
 <script>
+  $(document).ready(function () {
+    const table = $('#voucher-datatable').DataTable();
+    $('#voucherSearch').on('keyup', function () {
+        table.search(this.value).draw();
+    });
+});
 // ── Quick-select channel buttons (Payment / Receipt modals) ──────────────────
 // Payment: channel account → Credit (money going OUT from that account)
 // Receipt: channel account → Debit  (money coming IN to that account)

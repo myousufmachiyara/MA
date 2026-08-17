@@ -52,10 +52,11 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'token'   => $token,
-            'user'    => [
+            'user' => [
                 'id'            => $user->id,
                 'name'          => $user->name,
                 'phone'         => $user->phone,
+                'mobile_role'   => $user->mobile_role, // ← add this line
                 'employee_code' => $user->employee_code,
                 'assigned_area' => $user->assigned_area,
             ],

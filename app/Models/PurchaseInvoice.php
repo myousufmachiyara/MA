@@ -47,4 +47,9 @@ class PurchaseInvoice extends Model
     {
         return $this->belongsTo(Location::class);
     }
+
+    public function vouchers()
+    {
+        return $this->morphMany(Voucher::class, 'reference');
+    }
 }
