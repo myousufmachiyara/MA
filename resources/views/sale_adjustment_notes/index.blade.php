@@ -17,7 +17,7 @@
       </header>
 
       <div class="card-body">
-        <table class="table table-bordered table-striped" id="notesTable">
+        <table class="table table-bordered table-striped" id="datatable-default">
           <thead>
             <tr>
               <th>Note #</th><th>Type</th><th>Date</th><th>Invoice</th><th>Customer</th>
