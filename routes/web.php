@@ -32,6 +32,9 @@ use App\Http\Controllers\{
     SaleReturnController,
     PermissionController,
     ProductSubcategoryController,
+    AdvancePaymentController,
+    SaleAdjustmentNoteController,
+    SystemAccountMappingController,
 };
 
 Auth::routes();
@@ -101,7 +104,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // Sale Orders (web oversight of mobile-booked orders) — no create/store/destroy
+    // Sale Orders (web oversight of mobile-booked orders)
     // ─────────────────────────────────────────────────────────────
     Route::prefix('sale_orders')->name('sale_orders.')->group(function () {
         Route::get('/', [SaleOrderController::class, 'index'])->middleware('check.permission:sale_orders.index')->name('index');
@@ -122,6 +125,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', [DispatchTripController::class, 'create'])->middleware('check.permission:dispatch_trips.create')->name('create');
         Route::post('/', [DispatchTripController::class, 'store'])->middleware('check.permission:dispatch_trips.create')->name('store');
         Route::get('/{id}', [DispatchTripController::class, 'show'])->middleware('check.permission:dispatch_trips.index')->name('show');
+        Route::get('/{id}/load-sheet', [DispatchTripController::class, 'loadSheet'])->middleware('check.permission:dispatch_trips.print')->name('loadSheet');
         Route::post('/{id}/add-orders', [DispatchTripController::class, 'addOrders'])->middleware('check.permission:dispatch_trips.edit')->name('addOrders');
         Route::delete('/{id}/orders/{orderId}', [DispatchTripController::class, 'removeOrder'])->middleware('check.permission:dispatch_trips.edit')->name('removeOrder');
         Route::post('/{id}/dispatch', [DispatchTripController::class, 'dispatch'])->middleware('check.permission:dispatch_trips.edit')->name('dispatch');
@@ -142,7 +146,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ─────────────────────────────────────────────────────────────
-    // Sale Invoices — read-only, only ever generated via Dispatch Trip
+    // Sale Invoices
     // ─────────────────────────────────────────────────────────────
     Route::prefix('sale_invoices')->name('sale_invoices.')->group(function () {
         Route::get('/', [SaleInvoiceController::class, 'index'])->middleware('check.permission:sale_invoices.index')->name('index');
@@ -153,6 +157,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{id}', [SaleInvoiceController::class, 'update'])->middleware('check.permission:sale_invoices.edit')->name('update');
         Route::delete('/{id}', [SaleInvoiceController::class, 'destroy'])->middleware('check.permission:sale_invoices.delete')->name('destroy');
         Route::get('/{id}/print', [SaleInvoiceController::class, 'print'])->middleware('check.permission:sale_invoices.print')->name('print');
+        Route::get('/{id}/thermal-receipt', [SaleInvoiceController::class, 'thermalReceipt'])->middleware('check.permission:sale_invoices.print')->name('thermalReceipt');
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -167,6 +172,19 @@ Route::middleware(['auth'])->group(function () {
     });
     Route::get('/sale-returns/search-invoices', [SaleReturnController::class, 'searchInvoices'])->name('sale_returns.searchInvoices');
     Route::get('/sale-returns/invoice/{id}/items', [SaleReturnController::class, 'getInvoiceItems'])->name('sale_returns.invoiceItems');
+
+    // ─────────────────────────────────────────────────────────────
+    // Debit / Credit Notes
+    // ─────────────────────────────────────────────────────────────
+    Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
+    Route::get('/sale_adjustment_notes/search-invoices', [SaleAdjustmentNoteController::class, 'searchInvoices'])->name('sale_adjustment_notes.searchInvoices');
+
+    // ─────────────────────────────────────────────────────────────
+    // Advance Payments
+    // ─────────────────────────────────────────────────────────────
+    Route::resource('advance_payments', AdvancePaymentController::class)->only(['index', 'create', 'store', 'show']);
+    Route::post('/advance_payments/{id}/adjust', [AdvancePaymentController::class, 'adjust'])->name('advance_payments.adjust');
+    Route::get('/advance_payments/{id}/open-invoices', [AdvancePaymentController::class, 'openInvoices'])->name('advance_payments.openInvoices');
 
     // ─────────────────────────────────────────────────────────────
     // Stock Management — Locations, Transfers, Adjustments, Movement ledger
@@ -199,11 +217,22 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [StockMovementController::class, 'index'])->middleware('check.permission:stock_movements.index')->name('index');
         Route::get('/{itemId}', [StockMovementController::class, 'show'])->middleware('check.permission:stock_movements.index')->name('show');
     });
-    Route::resource('advance_payments', AdvancePaymentController::class)->only(['index', 'create', 'store', 'show']);
-    Route::post('/advance_payments/{id}/adjust', [AdvancePaymentController::class, 'adjust'])->name('advance_payments.adjust');
-    Route::get('/advance_payments/{id}/open-invoices', [AdvancePaymentController::class, 'openInvoices'])->name('advance_payments.openInvoices');
-    Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
-    Route::get('/sale_adjustment_notes/search-invoices', [SaleAdjustmentNoteController::class, 'searchInvoices'])->name('sale_adjustment_notes.searchInvoices');
+
+    // ─────────────────────────────────────────────────────────────
+    // Settings — Account Mapping & Thermal Printer
+    // ─────────────────────────────────────────────────────────────
+    Route::get('/settings/account-mappings', [SystemAccountMappingController::class, 'index'])
+        ->middleware('check.permission:account_mappings.index')
+        ->name('settings.accountMappings');
+
+    Route::put('/settings/account-mappings', [SystemAccountMappingController::class, 'update'])
+        ->middleware('check.permission:account_mappings.edit')
+        ->name('settings.accountMappings.update');
+
+    Route::get('/settings/thermal-printer', function () {
+        return view('settings.thermal_printer');
+    })->name('settings.thermalPrinter');
+
     // ─────────────────────────────────────────────────────────────
     // Generic CRUD modules — controllers here genuinely support the
     // full index/create/store/show/edit/update/destroy/print set
@@ -268,12 +297,9 @@ Route::middleware(['auth'])->group(function () {
     // Reports (readonly)
     // ─────────────────────────────────────────────────────────────
     Route::prefix('reports')->name('reports.')->group(function () {
-        Route::get('inventory', [InventoryReportController::class, 'inventoryReports'])->name('inventory');        
+        Route::get('inventory', [InventoryReportController::class, 'inventoryReports'])->name('inventory');
         Route::get('purchase', [PurchaseReportController::class, 'purchaseReports'])->name('purchase');
         Route::get('sale', [SalesReportController::class, 'saleReports'])->name('sale');
         Route::get('accounts', [AccountsReportController::class, 'accounts'])->name('accounts');
     });
-
-    Route::get('/sale_invoices/{id}/thermal-receipt', [SaleInvoiceController::class, 'thermalReceipt'])->middleware('check.permission:sale_invoices.print')->name('sale_invoices.thermalReceipt');
-    Route::get('/settings/thermal-printer', function () { return view('settings.thermal_printer'); })->name('settings.thermalPrinter');
 });
