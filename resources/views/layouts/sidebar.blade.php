@@ -186,7 +186,7 @@
           <li class="nav-parent">
             <a class="nav-link" href="#"><i class="fa fa-cogs"></i> <span>Settings</span></a>
             <ul class="nav nav-children">
-              {{-- <li><a class="nav-link" href="{{ route('settings.accountMappings') }}">Account Mapping</a></li> --}}
+              <li><a class="nav-link" href="{{ route('settings.accountMappings') }}">Account Mapping</a></li>
               <li><a class="nav-link" href="{{ route('settings.thermalPrinter') }}">Thermal Printer</a></li>
             </ul>
           </li>
