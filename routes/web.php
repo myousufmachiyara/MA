@@ -35,6 +35,7 @@ use App\Http\Controllers\{
     AdvancePaymentController,
     SaleAdjustmentNoteController,
     SystemAccountMappingController,
+    DispatchTripController,
 };
 
 Auth::routes();
