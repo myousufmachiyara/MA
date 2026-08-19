@@ -13,19 +13,25 @@ class SalesReportController extends Controller
 {
     public function saleReports(Request $request)
     {
-        $customers = ChartOfAccounts::where('account_type', 'customer')->orderBy('name')->get();
+        $customers = ChartOfAccounts::where('account_type', 'customer')
+            ->orderBy('name')
+            ->get();
 
         $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
-        $to   = $request->to_date   ?? Carbon::now()->toDateString();
+        $to   = $request->to_date ?? Carbon::now()->toDateString();
 
         $reports = [
             'sale_register'   => $this->saleRegister($request, $from, $to),
             'dispatch_report' => $this->dispatchReport($request, $from, $to),
             'item_wise'       => $this->itemWise($request, $from, $to),
             'customer_wise'   => $this->customerWise($request, $from, $to),
+            'monthly_summary' => $this->monthlySummary($request),
         ];
 
-        return view('reports.sales_reports', compact('reports', 'customers', 'from', 'to'));
+        return view(
+            'reports.sales_reports',
+            compact('reports', 'customers', 'from', 'to')
+        );
     }
 
     // ── TAB 1: SALE REGISTER ─────────────────────────────────────
