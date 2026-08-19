@@ -14,9 +14,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Traits\HasPdfCompanyHeader;
 
 class SaleReturnController extends Controller
 {
+    use HasPdfCompanyHeader;
     // ─────────────────────────────────────────────────────────────
     // Shared account resolvers — always use account_code (stable)
     // ─────────────────────────────────────────────────────────────

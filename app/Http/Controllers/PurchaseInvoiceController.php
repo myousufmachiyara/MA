@@ -22,9 +22,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Traits\HasPdfCompanyHeader;
 
 class PurchaseInvoiceController extends Controller
 {
+    use HasPdfCompanyHeader;
+
     private function inventoryAccount(): ChartOfAccounts
     {
         $account = ChartOfAccounts::where('account_code', '104001')->first();
