@@ -8,6 +8,7 @@ use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use App\Traits\HasPdfCompanyHeader;
 
 class VoucherController extends Controller
 {
