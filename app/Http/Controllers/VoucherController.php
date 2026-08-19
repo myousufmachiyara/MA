@@ -203,7 +203,7 @@ class VoucherController extends Controller
         $pdf->SetTitle(ucfirst($type) . ' Voucher #' . $voucher->voucher_no);
         $pdf->SetMargins(10, 10, 10);
         $pdf->AddPage();
-        $pdf->setCellPadding(1.5);
+        $pdf->setCellPadding(1);
 
         $this->addCompanyHeader($pdf, ucfirst($type) . ' Voucher');
 
