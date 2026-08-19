@@ -107,9 +107,6 @@ class DispatchTripController extends Controller
         $availableOrders = SaleOrder::with('customer', 'items.product')
             ->where('status', 'confirmed')
             ->latest()->get();
-        $itemSummary = collect($requirements)->map(fn ($r) => [
-            'name' => $r['name'], 'required' => $r['required'], 'available' => $r['available'],
-        ])->values();
 
         // Stock check: aggregate required qty across all orders currently in this trip
         $requirements = [];
