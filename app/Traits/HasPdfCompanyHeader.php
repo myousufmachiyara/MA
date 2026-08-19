@@ -10,7 +10,7 @@ trait HasPdfCompanyHeader
      */
     private function addCompanyHeader($pdf, string $documentTitle)
     {
-        $logoPath = public_path('assets/img/logo.png');
+        $logoPath = public_path('assets/img/logo.jpeg');
         if (file_exists($logoPath)) {
             $pdf->Image($logoPath, 15, 10, 28);
         }
