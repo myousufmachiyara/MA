@@ -12,6 +12,7 @@ use App\Traits\HasPdfCompanyHeader;
 
 class VoucherController extends Controller
 {
+    use HasPdfCompanyHeader;
     public function index($type)
     {
         $vouchers = Voucher::with(['debitAccount', 'creditAccount', 'entries.account'])
