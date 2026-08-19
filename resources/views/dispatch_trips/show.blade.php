@@ -11,10 +11,12 @@
     <section class="card">
       <header class="card-header d-flex justify-content-between">
         <h2 class="card-title">Trip TR-{{ $trip->trip_no }} — {{ $trip->vehicle_no }} — {{ $trip->deliveryManager->name }}</h2>
-        <span class="badge bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
-        <a href="{{ route('dispatch_trips.loadSheet', $trip->id) }}" target="_blank" class="btn btn-outline-secondary btn-sm">
-          <i class="fas fa-print"></i> Print Load Summary
-        </a>
+        <div>
+          <span class="badge bg-{{ ['planned'=>'secondary','dispatched'=>'primary','settled'=>'success','cancelled'=>'danger'][$trip->status] }}">{{ ucfirst($trip->status) }}</span>
+          <a href="{{ route('dispatch_trips.loadSheet', $trip->id) }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-print"></i> Print Load Summary
+          </a>
+        </div>
       </header>
 
       <div class="card-body">
