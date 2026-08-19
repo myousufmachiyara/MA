@@ -16,9 +16,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Services\ThermalReceiptService;
+use App\Traits\HasPdfCompanyHeader;
 
 class SaleInvoiceController extends Controller
 {
+    use HasPdfCompanyHeader;
+
     private function inventoryAccount(): ChartOfAccounts
     {
         return ChartOfAccounts::where('account_code', '104001')->firstOrFail();
