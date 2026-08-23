@@ -1,302 +1,149 @@
 @extends('layouts.app')
-@section('title', 'Edit Sale Return')
+
+@section('title', 'Sale Return | Edit')
 
 @section('content')
 <div class="row">
   <div class="col">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h4 class="card-title">Edit Sale Return</h4>
-        <a href="{{ route('sale_return.index') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Back</a>
-      </div>
-      <div class="card-body">
-        <form action="{{ route('sale_return.update', $return->id) }}" method="POST" id="saleReturnForm">
-          @csrf
-          @method('PUT')
+    <form action="{{ route('sale_return.update', $return->id) }}" method="POST" onkeydown="return event.key != 'Enter';">
+      @csrf
+      @method('PUT')
+      <section class="card">
+        <header class="card-header"><h2 class="card-title">Edit Sale Return SR-{{ $return->id }}</h2></header>
 
+        <div class="card-body">
           <div class="row mb-3">
             <div class="col-md-3">
-              <label>Customer Name</label>
-              <select name="account_id" class="form-control" required>
-                <option value="">Select Customer</option>
-                @foreach($customers as $cust)
-                  <option value="{{ $cust->id }}" {{ $return->account_id == $cust->id ? 'selected' : '' }}>
-                    {{ $cust->name }}
-                  </option>
+              <label>Customer</label>
+              <select name="account_id" class="form-control select2-js" required>
+                @foreach ($customers as $c)
+                  <option value="{{ $c->id }}" {{ $return->account_id == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
                 @endforeach
               </select>
             </div>
             <div class="col-md-2">
-              <label>Date</label>
-              <input type="date" name="return_date" class="form-control" value="{{ $return->return_date }}" required>
+              <label>Return Date</label>
+              <input type="date" name="return_date" class="form-control" value="{{ \Carbon\Carbon::parse($return->return_date)->format('Y-m-d') }}" required>
             </div>
-            <div class="col-md-2">
-              <label>Sale Inv #</label>
-              <input type="text" name="sale_invoice_no" class="form-control" value="{{ $return->sale_invoice_no }}">
+            <div class="col-md-3">
+              <label>Against Invoice #</label>
+              <input type="text" name="sale_invoice_no" class="form-control" value="{{ $return->sale_invoice_no }}" placeholder="e.g. 000123">
+            </div>
+            <div class="col-md-4">
+              <label>Remarks</label>
+              <input type="text" name="remarks" class="form-control" value="{{ $return->remarks }}">
             </div>
           </div>
 
           <table class="table table-bordered" id="itemsTable">
             <thead>
-              <tr>
-                <th width="15%">Item Code</th>
-                <th>Product</th>
-                <th>Variation</th>
-                <th width="8%">Qty</th>
-                <th width="10%">Price</th>
-                <th width="12%">Total</th>
-                <th width="5%">
-                  <button type="button" class="btn btn-sm btn-success" id="addRowBtn"><i class="fas fa-plus"></i></button>
-                </th>
-              </tr>
+              <tr><th>S.No</th><th>Item</th><th>Variation</th><th>Qty</th><th>Price</th><th>Amount</th><th>Action</th></tr>
             </thead>
-            <tbody>
-              @foreach($return->items as $i => $item)
+            <tbody id="ItemsBody">
+              @foreach($return->items as $key => $item)
               <tr>
+                <td class="serial-no">{{ $key + 1 }}</td>
                 <td>
-                  <input type="text" class="form-control product-code" placeholder="Scan/Enter Code"
-                         value="{{ $item->product->barcode ?? '' }}">
-                </td>
-                <td>
-                  <select name="items[{{ $i }}][product_id]" class="form-control product-select" required>
-                    <option value="">Select Product</option>
-                    @foreach($products as $prod)
-                      <option value="{{ $prod->id }}" data-price="{{ $prod->selling_price }}"
-                        {{ $item->product_id == $prod->id ? 'selected' : '' }}>
-                        {{ $prod->name }}
-                      </option>
+                  <select name="items[{{ $key }}][product_id]" id="item_name{{ $key + 1 }}" class="form-control select2-js" onchange="onItemChange(this)">
+                    @foreach ($products as $product)
+                      <option value="{{ $product->id }}" {{ $item->product_id == $product->id ? 'selected' : '' }}>{{ $product->name }}</option>
                     @endforeach
                   </select>
                 </td>
                 <td>
-                  <select name="items[{{ $i }}][variation_id]" class="form-control variation-select">
-                    <option value="">Select Variation</option>
-                    @if($item->product && $item->product->variations)
-                      @foreach($item->product->variations as $var)
-                        <option value="{{ $var->id }}" data-price="{{ $var->price }}"
-                          {{ $item->variation_id == $var->id ? 'selected' : '' }}>
-                          {{ $var->sku }}
-                        </option>
+                  <select name="items[{{ $key }}][variation_id]" id="variation{{ $key + 1 }}" class="form-control select2-js">
+                    <option value="">No Variation</option>
+                    @if($item->product)
+                      @foreach($item->product->variations as $v)
+                        <option value="{{ $v->id }}" {{ $item->variation_id == $v->id ? 'selected' : '' }}>{{ $v->sku }}</option>
                       @endforeach
                     @endif
                   </select>
                 </td>
-                <td><input type="number" name="items[{{ $i }}][qty]" class="form-control qty-input" value="{{ $item->qty }}" min="1"></td>
-                <td><input type="number" name="items[{{ $i }}][price]" class="form-control price-input" step="any" value="{{ $item->price }}" required></td>
-                <td><input type="number" name="items[{{ $i }}][total]" class="form-control total-input" value="{{ $item->qty * $item->price }}" readonly></td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-danger removeRowBtn">X</button>
-                  <input type="hidden" name="items[{{ $i }}][delete]" value="0" class="delete-flag">
-                </td>
+                <td><input type="number" name="items[{{ $key }}][qty]" id="qty{{ $key + 1 }}" class="form-control quantity" value="{{ $item->qty }}" step="any" onchange="rowTotal({{ $key + 1 }})"></td>
+                <td><input type="number" name="items[{{ $key }}][price]" id="price{{ $key + 1 }}" class="form-control" value="{{ $item->price }}" step="any" onchange="rowTotal({{ $key + 1 }})"></td>
+                <td><input type="number" id="amount{{ $key + 1 }}" class="form-control" value="{{ $item->qty * $item->price }}" disabled></td>
+                <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>
               </tr>
               @endforeach
             </tbody>
           </table>
+          <button type="button" class="btn btn-outline-primary" onclick="addRow()"><i class="fas fa-plus"></i> Add Item</button>
 
           <div class="row mt-3">
-            <div class="col-md-6">
-              <label>Remarks</label>
-              <textarea name="remarks" class="form-control" rows="2">{{ $return->remarks }}</textarea>
-            </div>
-            <div class="col-md-2 offset-md-4">
-              <label>Net Amount</label>
-              <input type="number" name="net_amount" id="net_amount" class="form-control" value="{{ $return->items->sum(fn($x) => $x->qty * $x->price) }}" readonly>
+            <div class="col text-end">
+              <h4>Total: <strong class="text-danger">PKR <span id="netTotal">{{ number_format($return->items->sum(fn($i) => $i->qty * $i->price), 2) }}</span></strong></h4>
             </div>
           </div>
+        </div>
 
-          <div class="mt-3">
-            <button type="submit" class="btn btn-primary">Update Return</button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <footer class="card-footer text-end">
+          <button type="submit" class="btn btn-primary">Update Return</button>
+        </footer>
+      </section>
+    </form>
   </div>
 </div>
 
 <script>
-$(document).ready(function () {
-    let rowIndex = $("#itemsTable tbody tr").length || 0;
+  var products = @json($products);
+  var index = {{ count($return->items) + 1 }};
 
-    // ✅ Add Row button
-    $("#addRowBtn").click(function () {
-        let newRow = `<tr>
-            <td><input type="text" class="form-control product-code" placeholder="Scan/Enter Code"></td>
-            <td>
-              <select name="items[${rowIndex}][product_id]" class="form-control product-select" required>
-                <option value="">Select Product</option>
-                @foreach($products as $prod)
-                  <option value="{{ $prod->id }}" data-price="{{ $prod->selling_price }}">{{ $prod->name }}</option>
-                @endforeach
-              </select>
-            </td>
-            <td>
-              <select name="items[${rowIndex}][variation_id]" class="form-control variation-select">
-                <option value="">Select Variation</option>
-              </select>
-            </td>
-            <td><input type="number" name="items[${rowIndex}][qty]" class="form-control qty-input" value="1" min="1"></td>
-            <td><input type="number" name="items[${rowIndex}][price]" class="form-control price-input" step="any" required></td>
-            <td><input type="number" name="items[${rowIndex}][total]" class="form-control total-input" readonly></td>
-            <td><button type="button" class="btn btn-sm btn-danger removeRow"><i class="fas fa-trash"></i></button></td>
-          </tr>`;
-        $("#itemsTable tbody").append(newRow);
+  $(document).ready(() => { $('.select2-js').select2({ width: '100%' }); tableTotal(); });
 
-        $('#itemsTable tbody tr:last .product-select, #itemsTable tbody tr:last .variation-select').select2({
-            width: '100%',
-            dropdownAutoWidth: true
-        });
+  function updateSerialNumbers() { $('.serial-no').each((i, el) => $(el).text(i + 1)); }
 
-        rowIndex++;
-    });
+  function removeRow(btn) { $(btn).closest('tr').remove(); updateSerialNumbers(); tableTotal(); }
 
-    // ✅ Remove row
-    $(document).on("click", ".removeRow, .removeRowBtn", function () {
-        $(this).closest("tr").remove();
-        calculateGrandTotal();
-    });
+  function addRow() {
+    let rowIndex = index - 1;
+    let row = `<tr>
+      <td class="serial-no"></td>
+      <td><select name="items[${rowIndex}][product_id]" id="item_name${index}" class="form-control select2-js" onchange="onItemChange(this)">
+        <option value="">Select Item</option>
+        ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+      </select></td>
+      <td><select name="items[${rowIndex}][variation_id]" id="variation${index}" class="form-control select2-js"><option value="">No Variation</option></select></td>
+      <td><input type="number" name="items[${rowIndex}][qty]" id="qty${index}" class="form-control quantity" value="0" step="any" onchange="rowTotal(${index})"></td>
+      <td><input type="number" name="items[${rowIndex}][price]" id="price${index}" class="form-control" value="0" step="any" onchange="rowTotal(${index})"></td>
+      <td><input type="number" id="amount${index}" class="form-control" value="0" disabled></td>
+      <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)"><i class="fas fa-times"></i></button></td>
+    </tr>`;
+    $('#ItemsBody').append(row);
+    $(`#item_name${index}, #variation${index}`).select2({ width: '100%' });
+    index++;
+    updateSerialNumbers();
+  }
 
-    // ✅ Product change → set price + load variations
-    $(document).on("change", ".product-select", function () {
-        let row = $(this).closest("tr");
-        let productId = $(this).val();
-        let price = $(this).find(":selected").data("price") || 0;
+  function rowTotal(row) {
+    let qty = parseFloat($('#qty' + row).val()) || 0;
+    let price = parseFloat($('#price' + row).val()) || 0;
+    $('#amount' + row).val((qty * price).toFixed(2));
+    tableTotal();
+  }
 
-        row.find(".price-input").val(price);
-        calculateRowTotal(row);
+  function tableTotal() {
+    let total = 0;
+    $('input[id^="amount"]').each(function () { total += parseFloat($(this).val()) || 0; });
+    $('#netTotal').text(total.toFixed(2));
+  }
 
-        if (productId) {
-            loadVariations(row, productId);
-        } else {
-            row.find(".variation-select").html('<option value="">Select Variation</option>').trigger('change');
-        }
-    });
+  function onItemChange(el) {
+    const rowIndex = el.id.match(/\d+$/)[0];
+    const variationSelect = $(`#variation${rowIndex}`);
+    const itemId = el.value;
 
-    // ✅ Variation change → update price if variation has price
-    $(document).on("change", ".variation-select", function () {
-        let row = $(this).closest("tr");
-        let price = $(this).find(":selected").data("price") || row.find(".price-input").val();
-        row.find(".price-input").val(price);
-        calculateRowTotal(row);
-    });
-
-    // ✅ Quantity / Price change → recalc total
-    $(document).on("input", ".qty-input, .price-input", function () {
-        let row = $(this).closest("tr");
-        calculateRowTotal(row);
-    });
-
-    // ✅ Barcode scan
-    $(document).on("blur", ".product-code", function () {
-        let row = $(this).closest("tr");
-        let barcode = $(this).val().trim();
-        if (!barcode) return;
-
-        $.ajax({
-            url: '/get-product-by-code/' + encodeURIComponent(barcode),
-            method: 'GET',
-            success: function (res) {
-                const $productSelect = row.find('.product-select');
-                const $variationSelect = row.find('.variation-select');
-
-                if (!res || !res.success) {
-                    alert(res.message || 'Product not found');
-                    resetRow(row);
-                    return;
-                }
-
-                // 🔹 CASE 1: Variation barcode
-                if (res.type === 'variation' && res.variation) {
-                    const v = Array.isArray(res.variation) ? res.variation[0] : res.variation;
-                    $productSelect.val(v.product_id).trigger('change.select2');
-                    loadVariations(row, v.product_id, v.id);
-
-                    row.find('.price-input').val(v.price || 0);
-                    row.find('.qty-input').val(row.find('.qty-input').val() || 1);
-                    calculateRowTotal(row);
-
-                    row.find('.qty-input').focus();
-                    if (row.is(':last-child')) {
-                        $("#addRowBtn").trigger("click");
-                        $('#itemsTable tbody tr:last .product-code').focus();
-                    }
-                    return;
-                }
-
-                // 🔹 CASE 2: Product barcode
-                if (res.type === 'product' && res.product) {
-                    const p = res.product;
-                    if ($productSelect.find(`option[value="${p.id}"]`).length) {
-                        $productSelect.val(p.id).trigger('change.select2');
-                        row.find('.product-code').val(p.barcode);
-                        row.find('.price-input').val(p.selling_price || 0);
-                        loadVariations(row, p.id);
-                        setTimeout(() => $variationSelect.select2('open'), 300);
-                    } else {
-                        alert("Product found but not in dropdown list.");
-                        resetRow(row);
-                    }
-                    return;
-                }
-
-                alert('Invalid response. Barcode not matched.');
-                resetRow(row);
-            },
-            error: function () {
-                alert('Error fetching product/variation.');
-                resetRow(row);
-            }
-        });
-    });
-
-    // ✅ Helpers
-    function calculateRowTotal(row) {
-        let qty = parseFloat(row.find(".qty-input").val()) || 0;
-        let price = parseFloat(row.find(".price-input").val()) || 0;
-        let total = qty * price;
-        row.find(".total-input").val(total.toFixed(2));
-        calculateGrandTotal();
-    }
-
-    function calculateGrandTotal() {
-        let grandTotal = 0;
-        $(".total-input").each(function () {
-            grandTotal += parseFloat($(this).val()) || 0;
-        });
-        $("#net_amount").val(grandTotal.toFixed(2));
-    }
-
-    function resetRow(row) {
-        row.find('.product-code').val('');
-        row.find('.product-select').val('').trigger('change.select2');
-        row.find('.variation-select').html('<option value="">Select Variation</option>');
-        row.find('.price-input').val('');
-        row.find('.qty-input').val(1);
-        row.find('.total-input').val('');
-        calculateGrandTotal();
-    }
-
-    // 🔹 Load variations with optional preselect
-    function loadVariations(row, productId, preselectVariationId = null) {
-        let $variationSelect = row.find('.variation-select');
-        $variationSelect.html('<option value="">Loading...</option>');
-        $.get(`/product/${productId}/variations`, function (data) {
-            let options = '<option value="">Select Variation</option>';
-            (data.variation || []).forEach(function (v) {
-                options += `<option value="${v.id}" data-price="${v.price || 0}">${v.sku}</option>`;
-            });
-            $variationSelect.html(options).trigger('change');
-
-            if (preselectVariationId) {
-                $variationSelect.val(preselectVariationId).trigger('change');
-            }
+    if (itemId) {
+      fetch(`/product/${itemId}/variations`)
+        .then(res => res.json())
+        .then(data => {
+          variationSelect.html('<option value="">No Variation</option>');
+          if (data.success && data.variation.length > 0) {
+            data.variation.forEach(v => variationSelect.append(`<option value="${v.id}">${v.sku}</option>`));
+          }
+          variationSelect.trigger('change.select2');
         });
     }
-
-    // ✅ Init: calculate totals for preloaded rows
-    $("#itemsTable tbody tr").each(function () {
-        calculateRowTotal($(this));
-    });
-});
+  }
 </script>
-
 @endsection

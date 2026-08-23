@@ -30,6 +30,11 @@
                 <td>{{ $ret->return_date }}</td>
                 <td>{{ number_format($ret->total_amount, 2) }}</td>
                 <td>
+                  @can('sale_return.edit')
+                    <a href="{{ route('sale_return.edit', $ret->id) }}" class="text-primary" title="Edit">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                  @endcan
                   @php $voucher = $ret->vouchers()->latest()->first(); @endphp
                   @if($voucher)
                   <a href="{{ route('vouchers.print', ['type' => $voucher->voucher_type, 'id' => $voucher->id]) }}" target="_blank" class="text-success me-1" title="GL Impact">
