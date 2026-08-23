@@ -322,12 +322,12 @@
                     <tbody>
                         @forelse($reports['sale_return'] as $ret)
                         <tr>
-                            <td>SR-{{ $ret->return_no }}</td>
+                            <td>SR-{{ $ret->id }}</td>
                             <td>{{ \Carbon\Carbon::parse($ret->return_date)->format('d-M-Y') }}</td>
                             <td>{{ $ret->sale_invoice_no ?? '—' }}</td>
                             <td>{{ $ret->customer->name ?? 'N/A' }}</td>
                             <td class="text-end">{{ $ret->items->count() }}</td>
-                            <td class="text-end fw-bold">{{ number_format($ret->items->sum('line_value'), 2) }}</td>
+                            <td class="text-end fw-bold">{{ number_format($ret->items->sum(fn($i) => $i->qty * $i->price), 2) }}</td>
                             <td class="no-print"><a href="{{ route('sale_return.show', $ret->id) }}" class="ref-link"><i class="fas fa-eye"></i></a></td>
                         </tr>
                         @empty
@@ -339,7 +339,7 @@
                         <tr>
                             <td colspan="4" class="text-end">Total:</td>
                             <td class="text-end">{{ $reports['sale_return']->sum(fn($r) => $r->items->count()) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_return']->sum(fn($r) => $r->items->sum('line_value')), 2) }}</td>
+                            <td class="text-end">{{ number_format($reports['sale_return']->sum(fn($r) => $r->items->sum(fn($i) => $i->qty * $i->price)), 2) }}</td>
                             <td class="no-print"></td>
                         </tr>
                     </tfoot>

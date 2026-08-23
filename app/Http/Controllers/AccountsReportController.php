@@ -11,9 +11,7 @@ use Illuminate\Support\Collection;
 
 class AccountsReportController extends Controller
 {
-    // DEBIT-NATURED (assets & expenses — increase with Dr)
     private const DEBIT_NATURE = ['customer', 'receivable', 'cash', 'bank', 'inventory', 'delivery_clearing', 'expenses', 'cogs'];
-    // CREDIT-NATURED (liabilities, equity & revenue — increase with Cr)
     private const CREDIT_NATURE = ['vendor', 'payable', 'liability', 'equity', 'revenue'];
 
     public function accounts(Request $request)
@@ -24,18 +22,26 @@ class AccountsReportController extends Controller
 
         $chartOfAccounts = ChartOfAccounts::orderBy('name')->get();
 
+        // FIX: computed ONCE per page load, not once per account.
+        // Reduces query count from hundreds/thousands down to ~8 total.
+        $asOfMap    = $this->buildBalanceMap(null, null, $to);
+        $periodMap  = $this->buildBalanceMap($from, $to, null);
+
+        $trialBalance = $this->trialBalance($chartOfAccounts, $asOfMap);
+        $profitLoss   = $this->profitLoss($chartOfAccounts, $periodMap);
+
         $reports = [
             'general_ledger'   => $this->generalLedger($accountId, $from, $to),
-            'trial_balance'    => $this->trialBalance($to),
-            'profit_loss'      => $this->profitLoss($from, $to),
-            'balance_sheet'    => $this->balanceSheet($from, $to),
+            'trial_balance'    => $trialBalance,
+            'profit_loss'      => $profitLoss,
+            'balance_sheet'    => $this->balanceSheet($trialBalance, $profitLoss), // FIX: reuses, doesn't recompute
             'party_ledger'     => $this->partyLedger($accountId, $from, $to),
-            'receivables'      => $this->receivables($to),
-            'payables'         => $this->payables($to),
+            'receivables'      => $this->receivables($chartOfAccounts, $asOfMap),
+            'payables'         => $this->payables($chartOfAccounts, $asOfMap),
             'cash_book'        => $this->cashBook($from, $to),
             'bank_book'        => $this->bankBook($from, $to),
             'journal_book'     => $this->journalBook($from, $to),
-            'expense_analysis' => $this->expenseAnalysis($from, $to),
+            'expense_analysis' => $this->expenseAnalysis($chartOfAccounts, $periodMap),
             'cash_flow'        => $this->cashFlow($from, $to),
         ];
 
@@ -55,12 +61,82 @@ class AccountsReportController extends Controller
     }
 
     /**
-     * Core balance calculator — reads BOTH:
-     *  - simple vouchers (manual entries, reference_type null) via ac_dr_sid/ac_cr_sid
-     *  - multi-line vouchers (auto-generated) via accounting_entries
+     * Bulk balance map — ONE pass over Voucher + AccountingEntry, grouped
+     * by account, instead of 4 queries × every single Chart of Accounts row.
+     * This is what replaces the old per-account getAccountBalance() loop.
      *
      * Mode A: pass $asOfDate — cumulative balance including COA opening balance.
      * Mode B: pass $from/$to, leave $asOfDate null — period-only movement.
+     *
+     * Returns: [account_id => ['debit' => float, 'credit' => float]]
+     */
+    private function buildBalanceMap(?string $from, ?string $to, ?string $asOfDate = null): array
+    {
+        $map = [];
+
+        if ($asOfDate) {
+            ChartOfAccounts::select('id', 'receivables', 'payables')->get()->each(function ($a) use (&$map) {
+                $map[$a->id] = ['debit' => (float) $a->receivables, 'credit' => (float) $a->payables];
+            });
+        }
+
+        $applyDateFilter = function ($query) use ($from, $to, $asOfDate) {
+            return $asOfDate
+                ? $query->where('voucher_date', '<=', $asOfDate)
+                : $query->whereBetween('voucher_date', [$from, $to]);
+        };
+
+        // Simple vouchers — debit side, grouped
+        $applyDateFilter(Voucher::whereNull('reference_type')->whereNull('deleted_at'))
+            ->selectRaw('ac_dr_sid as account_id, SUM(amount) as total')
+            ->groupBy('ac_dr_sid')
+            ->get()
+            ->each(function ($row) use (&$map) {
+                $map[$row->account_id]['debit'] = ($map[$row->account_id]['debit'] ?? 0) + (float) $row->total;
+            });
+
+        // Simple vouchers — credit side, grouped
+        $applyDateFilter(Voucher::whereNull('reference_type')->whereNull('deleted_at'))
+            ->selectRaw('ac_cr_sid as account_id, SUM(amount) as total')
+            ->groupBy('ac_cr_sid')
+            ->get()
+            ->each(function ($row) use (&$map) {
+                $map[$row->account_id]['credit'] = ($map[$row->account_id]['credit'] ?? 0) + (float) $row->total;
+            });
+
+        // Multi-line entries — one grouped query via join, not whereHas per account
+        $complexQuery = AccountingEntry::query()
+            ->join('vouchers', 'vouchers.id', '=', 'accounting_entries.voucher_id')
+            ->whereNull('vouchers.deleted_at');
+
+        $complexQuery = $asOfDate
+            ? $complexQuery->where('vouchers.voucher_date', '<=', $asOfDate)
+            : $complexQuery->whereBetween('vouchers.voucher_date', [$from, $to]);
+
+        $complexQuery
+            ->selectRaw('accounting_entries.account_id, SUM(accounting_entries.debit) as total_debit, SUM(accounting_entries.credit) as total_credit')
+            ->groupBy('accounting_entries.account_id')
+            ->get()
+            ->each(function ($row) use (&$map) {
+                $map[$row->account_id]['debit']  = ($map[$row->account_id]['debit'] ?? 0) + (float) $row->total_debit;
+                $map[$row->account_id]['credit'] = ($map[$row->account_id]['credit'] ?? 0) + (float) $row->total_credit;
+            });
+
+        return $map;
+    }
+
+    private function balanceFromMap(array $map, int $accountId): array
+    {
+        return [
+            'debit'  => $map[$accountId]['debit'] ?? 0.0,
+            'credit' => $map[$accountId]['credit'] ?? 0.0,
+        ];
+    }
+
+    /**
+     * Single-account balance — still used by General/Party Ledger's opening
+     * balance line, which only ever looks up ONE account, so this isn't
+     * the bottleneck and is left as a direct query for simplicity.
      */
     private function getAccountBalance(int $accountId, ?string $from, ?string $to, ?string $asOfDate = null): array
     {
@@ -98,11 +174,6 @@ class AccountsReportController extends Controller
         ];
     }
 
-    /**
-     * Chronological movement lines for one account — combines simple
-     * voucher rows and individual accounting_entries lines, each carrying
-     * its own reference_label/reference_link (built by the Voucher model).
-     */
     private function getLedgerLines(int $accountId, string $from, string $to): Collection
     {
         $lines = collect();
@@ -114,13 +185,13 @@ class AccountsReportController extends Controller
             ->get()
             ->each(function ($v) use ($accountId, &$lines) {
                 $lines->push([
-                    'sort'             => $v->voucher_date->format('Ymd') . str_pad($v->id, 10, '0', STR_PAD_LEFT),
-                    'date'             => $v->voucher_date->format('Y-m-d'),
-                    'reference_label'  => $v->voucher_no,
-                    'reference_link'   => route('vouchers.print', ['type' => $v->voucher_type, 'id' => $v->id]),
-                    'narration'        => $v->remarks ?? '',
-                    'dr'               => ($v->ac_dr_sid == $accountId) ? (float) $v->amount : 0.0,
-                    'cr'               => ($v->ac_cr_sid == $accountId) ? (float) $v->amount : 0.0,
+                    'sort'            => $v->voucher_date->format('Ymd') . str_pad($v->id, 10, '0', STR_PAD_LEFT),
+                    'date'            => $v->voucher_date->format('Y-m-d'),
+                    'reference_label' => $v->voucher_no,
+                    'reference_link'  => route('vouchers.print', ['type' => $v->voucher_type, 'id' => $v->id]),
+                    'narration'       => $v->remarks ?? '',
+                    'dr'              => ($v->ac_dr_sid == $accountId) ? (float) $v->amount : 0.0,
+                    'cr'              => ($v->ac_cr_sid == $accountId) ? (float) $v->amount : 0.0,
                 ]);
             });
 
@@ -131,13 +202,13 @@ class AccountsReportController extends Controller
             ->each(function ($entry) use (&$lines) {
                 $v = $entry->voucher;
                 $lines->push([
-                    'sort'             => optional($v->voucher_date)->format('Ymd') . str_pad($v->id, 10, '0', STR_PAD_LEFT),
-                    'date'             => optional($v->voucher_date)->format('Y-m-d') ?? '',
-                    'reference_label'  => $v->reference_label ?? $v->voucher_no,
-                    'reference_link'   => $v->reference_link ?? route('vouchers.print', ['type' => $v->voucher_type, 'id' => $v->id]),
-                    'narration'        => $entry->narration ?? $v->remarks ?? '',
-                    'dr'               => (float) $entry->debit,
-                    'cr'               => (float) $entry->credit,
+                    'sort'            => optional($v->voucher_date)->format('Ymd') . str_pad($v->id, 10, '0', STR_PAD_LEFT),
+                    'date'            => optional($v->voucher_date)->format('Y-m-d') ?? '',
+                    'reference_label' => $v->reference_label ?? $v->voucher_no,
+                    'reference_link'  => $v->reference_link ?? route('vouchers.print', ['type' => $v->voucher_type, 'id' => $v->id]),
+                    'narration'       => $entry->narration ?? $v->remarks ?? '',
+                    'dr'              => (float) $entry->debit,
+                    'cr'              => (float) $entry->credit,
                 ]);
             });
 
@@ -178,7 +249,7 @@ class AccountsReportController extends Controller
         return $rows;
     }
 
-    // ── 2. PARTY LEDGER (customers & vendors only) ─────────────
+    // ── 2. PARTY LEDGER ─────────────────────────────────────────
 
     private function partyLedger(?int $accountId, string $from, string $to): Collection
     {
@@ -191,19 +262,28 @@ class AccountsReportController extends Controller
 
     // ── 3. PROFIT & LOSS ────────────────────────────────────────
 
-    private function profitLoss(string $from, string $to)
+    private function profitLoss(Collection $chartOfAccounts, array $periodMap)
     {
-        $revenue = ChartOfAccounts::where('account_type', 'revenue')->get()
-            ->map(fn ($a) => [$a->name, $this->getAccountBalance($a->id, $from, $to)['credit'] - $this->getAccountBalance($a->id, $from, $to)['debit']])
-            ->filter(fn ($r) => $r[1] != 0);
+        $revenue = $chartOfAccounts->where('account_type', 'revenue')
+            ->map(function ($a) use ($periodMap) {
+                $bal = $this->balanceFromMap($periodMap, $a->id); // FIX: computed once, not twice
+                return [$a->name, $bal['credit'] - $bal['debit']];
+            })
+            ->filter(fn ($r) => $r[1] != 0)->values();
 
-        $cogs = ChartOfAccounts::where('account_type', 'cogs')->get()
-            ->map(fn ($a) => [$a->name, $this->getAccountBalance($a->id, $from, $to)['debit'] - $this->getAccountBalance($a->id, $from, $to)['credit']])
-            ->filter(fn ($r) => $r[1] != 0);
+        $cogs = $chartOfAccounts->where('account_type', 'cogs')
+            ->map(function ($a) use ($periodMap) {
+                $bal = $this->balanceFromMap($periodMap, $a->id);
+                return [$a->name, $bal['debit'] - $bal['credit']];
+            })
+            ->filter(fn ($r) => $r[1] != 0)->values();
 
-        $expenses = ChartOfAccounts::where('account_type', 'expenses')->get()
-            ->map(fn ($a) => [$a->name, $this->getAccountBalance($a->id, $from, $to)['debit'] - $this->getAccountBalance($a->id, $from, $to)['credit']])
-            ->filter(fn ($r) => $r[1] != 0);
+        $expenses = $chartOfAccounts->where('account_type', 'expenses')
+            ->map(function ($a) use ($periodMap) {
+                $bal = $this->balanceFromMap($periodMap, $a->id);
+                return [$a->name, $bal['debit'] - $bal['credit']];
+            })
+            ->filter(fn ($r) => $r[1] != 0)->values();
 
         $totalRev    = $revenue->sum(fn ($r) => $r[1]);
         $totalCogs   = $cogs->sum(fn ($r) => $r[1]);
@@ -211,13 +291,13 @@ class AccountsReportController extends Controller
         $totalExp    = $expenses->sum(fn ($r) => $r[1]);
         $netProfit   = $grossProfit - $totalExp;
 
-        $data = collect([['REVENUE', '']])->concat($revenue);
+        $data = collect([['REVENUE', '']])->concat($revenue->map(fn ($r) => [$r[0], $this->fmt($r[1])]));
         $data->push(['Total Revenue', $this->fmt($totalRev)]);
         $data->push(['LESS: COST OF GOODS SOLD', '']);
-        $data = $data->concat($cogs);
+        $data = $data->concat($cogs->map(fn ($r) => [$r[0], $this->fmt($r[1])]));
         $data->push(['GROSS PROFIT', $this->fmt($grossProfit)]);
         $data->push(['OPERATING EXPENSES', '']);
-        $data = $data->concat($expenses);
+        $data = $data->concat($expenses->map(fn ($r) => [$r[0], $this->fmt($r[1])]));
         $data->push(['NET PROFIT / LOSS', $this->fmt($netProfit)]);
 
         return $data;
@@ -225,13 +305,12 @@ class AccountsReportController extends Controller
 
     // ── 4. BALANCE SHEET ─────────────────────────────────────────
 
-    private function balanceSheet(string $from, string $to)
+    private function balanceSheet(Collection $trialBalance, Collection $profitLoss)
     {
-        $trial       = $this->trialBalance($to);
         $assets      = collect();
         $liabilities = collect();
 
-        foreach ($trial as $r) {
+        foreach ($trialBalance as $r) {
             $type   = $r[1];
             $debit  = (float) str_replace(',', '', $r[2]);
             $credit = (float) str_replace(',', '', $r[3]);
@@ -245,8 +324,7 @@ class AccountsReportController extends Controller
             }
         }
 
-        $pl = $this->profitLoss($from, $to);
-        $netProfitRow = $pl->last();
+        $netProfitRow = $profitLoss->last();
         if ($netProfitRow && $netProfitRow[0] === 'NET PROFIT / LOSS') {
             $liabilities->push(['Retained Earnings (Net Profit — Period)', $netProfitRow[1]]);
         }
@@ -262,11 +340,11 @@ class AccountsReportController extends Controller
 
     // ── 5. RECEIVABLES ──────────────────────────────────────────
 
-    private function receivables(string $to)
+    private function receivables(Collection $chartOfAccounts, array $asOfMap)
     {
-        return ChartOfAccounts::whereIn('account_type', ['customer', 'receivable'])->get()
-            ->map(function ($a) use ($to) {
-                $bal = $this->getAccountBalance($a->id, null, null, $to);
+        return $chartOfAccounts->whereIn('account_type', ['customer', 'receivable'])
+            ->map(function ($a) use ($asOfMap) {
+                $bal = $this->balanceFromMap($asOfMap, $a->id);
                 return [$a->name, $this->fmt($bal['debit'] - $bal['credit'])];
             })
             ->filter(fn ($r) => (float) str_replace(',', '', $r[1]) > 0)
@@ -275,11 +353,11 @@ class AccountsReportController extends Controller
 
     // ── 6. PAYABLES ──────────────────────────────────────────────
 
-    private function payables(string $to)
+    private function payables(Collection $chartOfAccounts, array $asOfMap)
     {
-        return ChartOfAccounts::whereIn('account_type', ['vendor', 'payable'])->get()
-            ->map(function ($a) use ($to) {
-                $bal = $this->getAccountBalance($a->id, null, null, $to);
+        return $chartOfAccounts->whereIn('account_type', ['vendor', 'payable'])
+            ->map(function ($a) use ($asOfMap) {
+                $bal = $this->balanceFromMap($asOfMap, $a->id);
                 return [$a->name, $this->fmt($bal['credit'] - $bal['debit'])];
             })
             ->filter(fn ($r) => (float) str_replace(',', '', $r[1]) > 0)
@@ -288,11 +366,11 @@ class AccountsReportController extends Controller
 
     // ── 7. TRIAL BALANCE ────────────────────────────────────────
 
-    private function trialBalance(string $to)
+    private function trialBalance(Collection $chartOfAccounts, array $asOfMap)
     {
-        return ChartOfAccounts::all()
-            ->map(function ($a) use ($to) {
-                $bal = $this->getAccountBalance($a->id, null, null, $to);
+        return $chartOfAccounts
+            ->map(function ($a) use ($asOfMap) {
+                $bal = $this->balanceFromMap($asOfMap, $a->id);
 
                 if ($this->isDebitNature($a->account_type)) {
                     $diff = $bal['debit'] - $bal['credit'];
@@ -304,7 +382,8 @@ class AccountsReportController extends Controller
 
                 return [$a->name, $a->account_type, $this->fmt($debit), $this->fmt($credit)];
             })
-            ->filter(fn ($r) => (float) str_replace(',', '', $r[2]) != 0 || (float) str_replace(',', '', $r[3]) != 0);
+            ->filter(fn ($r) => (float) str_replace(',', '', $r[2]) != 0 || (float) str_replace(',', '', $r[3]) != 0)
+            ->values();
     }
 
     // ── 8 & 9. CASH BOOK / BANK BOOK ─────────────────────────────
@@ -377,14 +456,14 @@ class AccountsReportController extends Controller
         });
     }
 
-    // ── 10. JOURNAL / DAY BOOK (manual vouchers only) ────────────
+    // ── 10. JOURNAL / DAY BOOK ────────────────────────────────────
 
     private function journalBook(string $from, string $to)
     {
         return Voucher::with(['debitAccount', 'creditAccount'])
             ->whereBetween('voucher_date', [$from, $to])
             ->whereNull('deleted_at')
-            ->whereNull('reference_type') // manual entries only — system-generated vouchers are viewed via their source document
+            ->whereNull('reference_type')
             ->orderBy('voucher_date')
             ->get()
             ->map(fn ($v) => [
@@ -401,14 +480,15 @@ class AccountsReportController extends Controller
 
     // ── 11. EXPENSE ANALYSIS ─────────────────────────────────────
 
-    private function expenseAnalysis(string $from, string $to)
+    private function expenseAnalysis(Collection $chartOfAccounts, array $periodMap)
     {
-        return ChartOfAccounts::where('account_type', 'expenses')->get()
-            ->map(function ($a) use ($from, $to) {
-                $bal = $this->getAccountBalance($a->id, $from, $to);
+        return $chartOfAccounts->where('account_type', 'expenses')
+            ->map(function ($a) use ($periodMap) {
+                $bal = $this->balanceFromMap($periodMap, $a->id);
                 return [$a->name, $this->fmt($bal['debit'] - $bal['credit'])];
             })
-            ->filter(fn ($r) => (float) str_replace(',', '', $r[1]) != 0);
+            ->filter(fn ($r) => (float) str_replace(',', '', $r[1]) != 0)
+            ->values();
     }
 
     // ── 12. CASH FLOW ─────────────────────────────────────────────
