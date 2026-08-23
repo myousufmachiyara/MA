@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SaleInvoice;
 use App\Models\SaleInvoiceItem;
 use App\Models\SaleOrder;
+use App\Models\SaleReturn;
 use App\Models\DispatchTrip;
 use App\Models\ChartOfAccounts;
 use Illuminate\Http\Request;
