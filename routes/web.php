@@ -168,6 +168,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', [SaleReturnController::class, 'create'])->middleware('check.permission:sale_return.create')->name('create');
         Route::post('/', [SaleReturnController::class, 'store'])->middleware('check.permission:sale_return.create')->name('store');
         Route::get('/{id}', [SaleReturnController::class, 'show'])->middleware('check.permission:sale_return.index')->name('show');
+        Route::get('/{id}/edit', [SaleReturnController::class, 'edit'])->middleware('check.permission:sale_return.edit')->name('edit');
+        Route::put('/{id}', [SaleReturnController::class, 'update'])->middleware('check.permission:sale_return.edit')->name('update');
         Route::get('/{id}/print', [SaleReturnController::class, 'print'])->middleware('check.permission:sale_return.print')->name('print');
         Route::delete('/{id}', [SaleReturnController::class, 'destroy'])->middleware('check.permission:sale_return.delete')->name('destroy');
     });
