@@ -417,12 +417,12 @@ class SaleReturnController extends Controller
         foreach ($return->items as $i => $item) {
             $total += $item->line_value;
             $html .= '<tr>
-                <td style="text-align:center;">' . ($i + 1) . '</td>
-                <td>' . e($item->product->name ?? '-') . '</td>
-                <td style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
-                <td style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
-                <td style="text-align:right;">' . number_format($item->price, 2) . '</td>
-                <td style="text-align:right;">' . number_format($item->line_value, 2) . '</td>
+                <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
+                <td width="35%">' . e($item->product->name ?? '-') . '</td>
+                <td width="15%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td width="15%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
+                <td width="15%"style="text-align:right;">' . number_format($item->price, 2) . '</td>
+                <td width="15%" style="text-align:right;">' . number_format($item->line_value, 2) . '</td>
             </tr>';
         }
 
