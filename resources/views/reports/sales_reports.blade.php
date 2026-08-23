@@ -303,9 +303,48 @@
 
         {{-- ══════════════════ TAB 6: SALE RETURN (pending finalization) ══════════════════ --}}
         <div class="tab-pane fade" id="sale_return" role="tabpanel">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-1"></i>
-                Sale Return report will be finalized together with Purchase Return at the end of the build.
+            <form method="GET" action="{{ route('reports.sale') }}" class="row g-2 mb-3 no-print">
+                <input type="hidden" name="tab" value="sale_return">
+                <div class="col-md-2"><input type="date" name="from_date" value="{{ request('from_date', $from) }}" class="form-control"></div>
+                <div class="col-md-2"><input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control"></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
+                <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('sale_return', 'Sale Return Register')"><i class="fas fa-file-pdf"></i> PDF</button></div>
+            </form>
+
+            <div class="table-responsive" id="report-table-sale_return">
+                <table class="table table-bordered table-striped align-middle table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Return #</th><th>Date</th><th>Against Invoice</th><th>Customer</th>
+                            <th class="text-end">Items</th><th class="text-end">Total Value</th><th class="no-print"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($reports['sale_return'] as $ret)
+                        <tr>
+                            <td>SR-{{ $ret->return_no }}</td>
+                            <td>{{ \Carbon\Carbon::parse($ret->return_date)->format('d-M-Y') }}</td>
+                            <td>SI-{{ $ret->invoice->invoice_no ?? '—' }}</td>
+                            <td>{{ $ret->invoice->customer->name ?? 'N/A' }}</td>
+                            <td class="text-end">{{ $ret->items->count() }}</td>
+                            <td class="text-end fw-bold">{{ number_format($ret->items->sum('line_value'), 2) }}</td>
+                            <td class="no-print"><a href="{{ route('sale_return.show', $ret->id) }}" class="ref-link"><i class="fas fa-eye"></i></a></td>
+                        </tr>
+                        @empty
+                            <tr><td colspan="7" class="text-center text-muted py-3">No sale returns found in this period.</td></tr>
+                        @endforelse
+                    </tbody>
+                    @if($reports['sale_return']->count() > 0)
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4" class="text-end">Total:</td>
+                            <td class="text-end">{{ $reports['sale_return']->sum(fn($r) => $r->items->count()) }}</td>
+                            <td class="text-end">{{ number_format($reports['sale_return']->sum(fn($r) => $r->items->sum('line_value')), 2) }}</td>
+                            <td class="no-print"></td>
+                        </tr>
+                    </tfoot>
+                    @endif
+                </table>
             </div>
         </div>
 

@@ -36,9 +36,17 @@
                     <i class="fas fa-book"></i>
                   </a>
                   @endif
-                  <a href="{{ route('sale_return.edit', $ret->id) }}" class="text-primary">
-                    <i class="fas fa-edit"></i>
+                  <a href="{{ route('sale_return.show', $ret->id) }}" class="text-primary" title="View">
+                    <i class="fas fa-eye"></i>
                   </a>
+                  @can('sale_return.delete')
+                    <form action="{{ route('sale_return.destroy', $ret->id) }}" method="POST" class="d-inline">
+                      @csrf @method('DELETE')
+                      <button type="submit" class="btn btn-link p-0 m-0 text-danger" onclick="return confirm('Delete this return?')" title="Delete">
+                        <i class="fas fa-trash-alt"></i>
+                      </button>
+                    </form>
+                  @endcan
                   <a href="{{ route('sale_return.print', $ret->id) }}" target="_blank" class="text-success">
                     <i class="fas fa-print"></i>
                   </a>

@@ -27,6 +27,7 @@ class SalesReportController extends Controller
             'item_wise'       => $this->itemWise($request, $from, $to),
             'customer_wise'   => $this->customerWise($request, $from, $to),
             'monthly_summary' => $this->monthlySummary($request),
+            'sale_return'     => $this->saleReturnRegister($request, $from, $to),
         ];
 
         return view(
@@ -163,5 +164,17 @@ class SalesReportController extends Controller
             ->map(fn ($group) => ['count' => $group->count(), 'amount' => $group->sum('total_amount')]);
 
         return ['year' => $year, 'monthly' => $monthly, 'bookerBreakdown' => $bookerBreakdown];
+    }
+
+    private function saleReturnRegister(Request $request, string $from, string $to)
+    {
+        $query = SaleReturn::with(['invoice.customer', 'items.product', 'items.variation'])
+            ->whereBetween('return_date', [$from, $to]);
+
+        if ($request->filled('customer_id')) {
+            $query->whereHas('invoice', fn ($q) => $q->where('customer_id', $request->customer_id));
+        }
+
+        return $query->latest('return_date')->get();
     }
 }
