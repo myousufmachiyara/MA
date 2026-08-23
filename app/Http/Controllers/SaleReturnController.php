@@ -408,7 +408,7 @@ class SaleReturnController extends Controller
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="5%">#</th><th width="25%">Item</th><th width="25%">Variation</th>
+                    <th width="5%">#</th><th width="20%">Item</th><th width="30%">Variation</th>
                     <th width="15%">Qty</th><th width="15%">Price</th><th width="15%">Value</th>
                 </tr>
             </thead><tbody>';
