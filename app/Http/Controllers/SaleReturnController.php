@@ -354,15 +354,15 @@ class SaleReturnController extends Controller
         $pdf->SetFont('helvetica', '', 10);
         $pdf->Cell(0, 5, 'Return #: SR-' . $return->id, 0, 1, 'L');
         $pdf->Cell(0, 5, 'Date: ' . Carbon::parse($return->return_date)->format('d-M-Y'), 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Against Invoice: SI-' . ($return->sale_invoice_no ?? '—'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Against Invoice:' . ($return->sale_invoice_no ?? '—'), 0, 1, 'L');
         $pdf->Cell(0, 5, 'Customer: ' . ($return->customer->name ?? 'N/A'), 0, 1, 'L');
         $pdf->Ln(4);
 
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="5%">#</th><th width="35%">Item</th><th width="20%">Variation</th>
-                    <th width="15%">Qty</th><th width="12%">Price</th><th width="13%">Value</th>
+                    <th width="5%">#</th><th width="20%">Item</th><th width="30%">Variation</th>
+                    <th width="15%">Qty</th><th width="15%">Price</th><th width="15%">Value</th>
                 </tr>
             </thead><tbody>';
 
@@ -371,12 +371,12 @@ class SaleReturnController extends Controller
             $lineValue = $item->qty * $item->price;
             $total += $lineValue;
             $html .= '<tr>
-                <td style="text-align:center;">' . ($i + 1) . '</td>
-                <td>' . e($item->product->name ?? '-') . '</td>
-                <td style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
-                <td style="text-align:center;">' . number_format($item->qty, 2) . '</td>
-                <td style="text-align:right;">' . number_format($item->price, 2) . '</td>
-                <td style="text-align:right;">' . number_format($lineValue, 2) . '</td>
+                <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
+                <td width="20%">' . e($item->product->name ?? '-') . '</td>
+                <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td width="15%" style="text-align:center;">' . number_format($item->qty, 2) . '</td>
+                <td width="15%" style="text-align:right;">' . number_format($item->price, 2) . '</td>
+                <td width="15%" style="text-align:right;">' . number_format($lineValue, 2) . '</td>
             </tr>';
         }
 

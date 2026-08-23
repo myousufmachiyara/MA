@@ -47,7 +47,7 @@
             <tr>
               <td>{{ $item->product->name ?? 'N/A' }}</td>
               <td>{{ $item->variation->sku ?? '—' }}</td>
-              <td class="text-end">{{ number_format($item->quantity ?? 0, 2) }}</td>
+              <td class="text-end">{{ number_format($item->qty ?? 0, 2) }}</td>
               <td class="text-end">{{ number_format($item->price ?? 0, 2) }}</td>
               <td class="text-end">{{ number_format($item->line_value ?? (($item->quantity ?? 0) * ($item->price ?? 0)), 2) }}</td>
             </tr>
