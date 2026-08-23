@@ -408,7 +408,7 @@ class SaleReturnController extends Controller
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="5%">#</th><th width="35%">Item</th><th width="15%">Variation</th>
+                    <th width="5%">#</th><th width="25%">Item</th><th width="25%">Variation</th>
                     <th width="15%">Qty</th><th width="15%">Price</th><th width="15%">Value</th>
                 </tr>
             </thead><tbody>';
@@ -418,8 +418,8 @@ class SaleReturnController extends Controller
             $total += $item->line_value;
             $html .= '<tr>
                 <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="35%">' . e($item->product->name ?? '-') . '</td>
-                <td width="15%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td width="25%">' . e($item->product->name ?? '-') . '</td>
+                <td width="25%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
                 <td width="15%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
                 <td width="15%"style="text-align:right;">' . number_format($item->price, 2) . '</td>
                 <td width="15%" style="text-align:right;">' . number_format($item->line_value, 2) . '</td>
