@@ -418,8 +418,8 @@ class SaleReturnController extends Controller
             $total += $item->line_value;
             $html .= '<tr>
                 <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="25%">' . e($item->product->name ?? '-') . '</td>
-                <td width="25%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td width="20%">' . e($item->product->name ?? '-') . '</td>
+                <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
                 <td width="15%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
                 <td width="15%"style="text-align:right;">' . number_format($item->price, 2) . '</td>
                 <td width="15%" style="text-align:right;">' . number_format($item->line_value, 2) . '</td>
