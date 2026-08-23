@@ -339,7 +339,7 @@ class SaleReturnController extends Controller
     {
         $return = SaleReturn::with('items.product', 'items.variation', 'customer')
             ->findOrFail($id);
-        return response()->json($return);
+        return view('sale_returns.show', compact('return'));
     }
 
     // ─────────────────────────────────────────────────────────────
