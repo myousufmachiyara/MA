@@ -383,118 +383,56 @@ class SaleReturnController extends Controller
     // ─────────────────────────────────────────────────────────────
     // PRINT  (PDF)
     // ─────────────────────────────────────────────────────────────
-    public function print($id)
+    public function print($id)  
     {
-        $return = SaleReturn::with(['customer', 'items.product', 'items.variation'])->findOrFail($id);
+        $return = SaleReturn::with(['invoice.customer', 'items.product', 'items.variation'])->findOrFail($id);
 
-        $pdf = new \TCPDF();
+        $pdf = new \TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf->SetCreator('BillTrix');
+        $pdf->SetTitle('SR-' . $return->return_no);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
-        $pdf->SetCreator('BillTrix');
-        $pdf->SetAuthor('Lucky Corporation');
-        $pdf->SetTitle('Sale Return #' . $return->id);
-        $pdf->SetMargins(10, 10, 10);
+        $pdf->SetMargins(15, 15, 15);
+        $pdf->SetAutoPageBreak(true, 20);
         $pdf->AddPage();
-        $pdf->setCellPadding(1.5);
 
-        // Logo
-        $logoPath = public_path('assets/img/logo.png');
-        if (file_exists($logoPath)) {
-            $pdf->Image($logoPath, 8, 10, 40);
-        }
+        $this->addCompanyHeader($pdf, 'SALE RETURN');
 
-        // Return info (top right)
-        $pdf->SetXY(130, 12);
-        $returnInfo = '
-        <table cellpadding="2" style="font-size:10px;line-height:14px;">
-            <tr><td><b>Return #</b></td><td>'  . $return->id . '</td></tr>
-            <tr><td><b>Date</b></td><td>'       . Carbon::parse($return->return_date)->format('d/m/Y') . '</td></tr>
-            <tr><td><b>Customer</b></td><td>'   . e($return->customer->name ?? '-') . '</td></tr>
-            <tr><td><b>Sale Invoice</b></td><td>' . e($return->sale_invoice_no ?? '-') . '</td></tr>
-        </table>';
-        $pdf->writeHTML($returnInfo, false, false, false, false, '');
+        $pdf->SetFont('helvetica', '', 10);
+        $pdf->Cell(0, 5, 'Return #: SR-' . $return->return_no, 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Date: ' . \Carbon\Carbon::parse($return->return_date)->format('d-M-Y'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Against Invoice: SI-' . ($return->invoice->invoice_no ?? '—'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Customer: ' . ($return->invoice->customer->name ?? 'N/A'), 0, 1, 'L');
+        $pdf->Ln(4);
 
-        $pdf->Line(60, 52.25, 200, 52.25);
+        $html = '<table border="1" cellpadding="5" style="font-size:10px;">
+            <thead>
+                <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
+                    <th width="5%">#</th><th width="35%">Item</th><th width="15%">Variation</th>
+                    <th width="15%">Qty</th><th width="15%">Price</th><th width="15%">Value</th>
+                </tr>
+            </thead><tbody>';
 
-        // Title badge
-        $pdf->SetXY(10, 48);
-        $pdf->SetFillColor(23, 54, 93);
-        $pdf->SetTextColor(255, 255, 255);
-        $pdf->SetFont('helvetica', '', 12);
-        $pdf->Cell(50, 8, 'Sale Return', 0, 1, 'C', 1);
-        $pdf->SetTextColor(0, 0, 0);
-
-        // Items table
-        $pdf->Ln(5);
-        $html = '<table border="0.3" cellpadding="4" style="text-align:center;font-size:10px;">
-            <tr style="background-color:#f5f5f5;font-weight:bold;">
-                <th width="8%">S.No</th>
-                <th width="25%">Product</th>
-                <th width="30%">Variation</th>
-                <th width="10%">Qty</th>
-                <th width="12%">Price</th>
-                <th width="15%">Total</th>
-            </tr>';
-
-        $count       = 0;
-        $totalAmount = 0;
-
-        foreach ($return->items as $item) {
-            $count++;
-            $lineTotal    = $item->qty * $item->price;
-            $totalAmount += $lineTotal;
-
-            $html .= '
-            <tr>
-                <td align="center">' . $count . '</td>
+        $total = 0;
+        foreach ($return->items as $i => $item) {
+            $total += $item->line_value;
+            $html .= '<tr>
+                <td style="text-align:center;">' . ($i + 1) . '</td>
                 <td>' . e($item->product->name ?? '-') . '</td>
-                <td>' . e($item->variation->sku ?? '-') . '</td>
-                <td align="center">' . number_format($item->qty, 2) . '</td>
-                <td align="right">'  . number_format($item->price, 2) . '</td>
-                <td align="right">'  . number_format($lineTotal, 2) . '</td>
+                <td style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
+                <td style="text-align:right;">' . number_format($item->price, 2) . '</td>
+                <td style="text-align:right;">' . number_format($item->line_value, 2) . '</td>
             </tr>';
         }
 
-        $html .= '
-            <tr>
-                <td colspan="5" align="right"><b>Total</b></td>
-                <td align="right"><b>' . number_format($totalAmount, 2) . '</b></td>
-            </tr>';
+        $html .= '<tr style="font-weight:bold;background-color:#fafafa;">
+                <td colspan="5" style="text-align:right;">Total</td>
+                <td style="text-align:right;">' . number_format($total, 2) . '</td>
+            </tr></tbody></table>';
 
-        if (!empty($return->discount)) {
-            $html .= '
-            <tr>
-                <td colspan="5" align="right">Return Discount</td>
-                <td align="right">' . number_format($return->discount, 2) . '</td>
-            </tr>';
-            $totalAmount -= $return->discount;
-        }
+        $pdf->writeHTML($html, true, false, false, false, '');
 
-        $html .= '
-            <tr style="background-color:#f5f5f5;">
-                <td colspan="5" align="right"><b>Net Total</b></td>
-                <td align="right"><b>' . number_format($totalAmount, 2) . '</b></td>
-            </tr>
-        </table>';
-
-        $pdf->writeHTML($html, true, false, true, false, '');
-
-        if (!empty($return->remarks)) {
-            $pdf->writeHTML('<b>Remarks:</b><br><span style="font-size:12px;">' . nl2br(e($return->remarks)) . '</span>', true, false, true, false, '');
-        }
-
-        // Signatures
-        $pdf->Ln(20);
-        $yPos      = $pdf->GetY();
-        $lineWidth = 40;
-
-        $pdf->Line(28, $yPos, 28 + $lineWidth, $yPos);
-        $pdf->Line(130, $yPos, 130 + $lineWidth, $yPos);
-        $pdf->SetXY(28, $yPos + 2);
-        $pdf->Cell($lineWidth, 6, 'Received By', 0, 0, 'C');
-        $pdf->SetXY(130, $yPos + 2);
-        $pdf->Cell($lineWidth, 6, 'Authorized By', 0, 0, 'C');
-
-        return $pdf->Output('sale_return_' . $return->id . '.pdf', 'I');
+        return $pdf->Output('SR_' . $return->return_no . '.pdf', 'I');
     }
 }
