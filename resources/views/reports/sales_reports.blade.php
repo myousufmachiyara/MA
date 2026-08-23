@@ -324,8 +324,8 @@
                         <tr>
                             <td>SR-{{ $ret->return_no }}</td>
                             <td>{{ \Carbon\Carbon::parse($ret->return_date)->format('d-M-Y') }}</td>
-                            <td>SI-{{ $ret->invoice->invoice_no ?? '—' }}</td>
-                            <td>{{ $ret->invoice->customer->name ?? 'N/A' }}</td>
+                            <td>SI-{{ $ret->sale_invoice_no ?? '—' }}</td>
+                            <td>{{ $ret->customer->name ?? 'N/A' }}</td>
                             <td class="text-end">{{ $ret->items->count() }}</td>
                             <td class="text-end fw-bold">{{ number_format($ret->items->sum('line_value'), 2) }}</td>
                             <td class="no-print"><a href="{{ route('sale_return.show', $ret->id) }}" class="ref-link"><i class="fas fa-eye"></i></a></td>

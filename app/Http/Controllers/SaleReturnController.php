@@ -385,7 +385,7 @@ class SaleReturnController extends Controller
     // ─────────────────────────────────────────────────────────────
     public function print($id)  
     {
-        $return = SaleReturn::with(['invoice.customer', 'items.product', 'items.variation'])->findOrFail($id);
+        $return = SaleReturn::with(['customer', 'items.product', 'items.variation'])->findOrFail($id);
 
         $pdf = new \TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
         $pdf->SetCreator('BillTrix');
@@ -401,8 +401,8 @@ class SaleReturnController extends Controller
         $pdf->SetFont('helvetica', '', 10);
         $pdf->Cell(0, 5, 'Return #: SR-' . $return->return_no, 0, 1, 'L');
         $pdf->Cell(0, 5, 'Date: ' . \Carbon\Carbon::parse($return->return_date)->format('d-M-Y'), 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Against Invoice: SI-' . ($return->invoice->invoice_no ?? '—'), 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Customer: ' . ($return->invoice->customer->name ?? 'N/A'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Against Invoice: SI-' . ($return->sale_invoice_no ?? '—'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Customer: ' . ($return->customer->name ?? 'N/A'), 0, 1, 'L');
         $pdf->Ln(4);
 
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">

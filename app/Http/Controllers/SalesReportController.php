@@ -168,11 +168,11 @@ class SalesReportController extends Controller
 
     private function saleReturnRegister(Request $request, string $from, string $to)
     {
-        $query = SaleReturn::with(['invoice.customer', 'items.product', 'items.variation'])
-            ->whereBetween('return_date', [$from, $to]);
+        $query = SaleReturn::with(['customer', 'items.product', 'items.variation'])
+        ->whereBetween('return_date', [$from, $to]);
 
         if ($request->filled('customer_id')) {
-            $query->whereHas('invoice', fn ($q) => $q->where('customer_id', $request->customer_id));
+            $query->where('account_id', $request->customer_id);
         }
 
         return $query->latest('return_date')->get();
