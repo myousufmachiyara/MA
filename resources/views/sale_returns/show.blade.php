@@ -28,7 +28,7 @@
             <strong>Return Date:</strong><br>{{ \Carbon\Carbon::parse($return->return_date)->format('d-M-Y') }}
           </div>
           <div class="col-md-3">
-            <strong>Against Invoice:</strong><br>SI-{{ $return->sale_invoice_no ?? '—' }}
+            <strong>Against Invoice:</strong><br>{{ $return->sale_invoice_no ?? '—' }}
           </div>
           <div class="col-md-2">
             <strong>Created By:</strong><br>{{ $return->creator->name ?? 'N/A' }}
