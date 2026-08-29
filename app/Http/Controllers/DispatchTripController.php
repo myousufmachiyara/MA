@@ -186,7 +186,7 @@ class DispatchTripController extends Controller
             $totalCases += $row['qty'];
             $html .= '<tr>
                 <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="40%">' . e($row['product']) . '</td>
+                <td width="40%" style="text-align:center;">' . e($row['product']) . '</td>
                 <td width="40%" style="text-align:center;">' . e($row['pack_size']) . '</td>
                 <td width="15%" style="text-align:center;">' . number_format($row['qty'], 0) . '</td>
             </tr>';
