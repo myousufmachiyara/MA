@@ -69,8 +69,11 @@ class SaleReturnController extends Controller
     /**
      * STORE
      *
-     * Posts ONE combined voucher via VoucherService — replaces the old
-     * broken Voucher::create() calls (wrong columns, no voucher_no).
+     * Posts ONE combined voucher via VoucherService. Also resolves
+     * sale_invoice_id from the entered sale_invoice_no, so returns are
+     * properly linked to the real invoice record (used by
+     * SaleInvoice::returns()/returned_value for accurate reporting),
+     * not just carrying a loose string.
      */
     public function store(Request $request)
     {
@@ -91,9 +94,17 @@ class SaleReturnController extends Controller
         try {
             Log::info('[SR] Store started', ['user_id' => Auth::id()]);
 
+            // Resolve the real invoice ID from the entered invoice number,
+            // if one was given. If nothing matches, this stays null and the
+            // return is still saved — just without a linked invoice.
+            $invoice = !empty($validated['sale_invoice_no'])
+                ? SaleInvoice::where('invoice_no', $validated['sale_invoice_no'])->first()
+                : null;
+
             $return = SaleReturn::create([
                 'account_id'      => $validated['customer_id'],
                 'return_date'     => $validated['return_date'],
+                'sale_invoice_id' => $invoice->id ?? null,
                 'sale_invoice_no' => $validated['sale_invoice_no'] ?? null,
                 'remarks'         => $validated['remarks'] ?? null,
                 'created_by'      => Auth::id(),
@@ -148,8 +159,8 @@ class SaleReturnController extends Controller
 
     /**
      * UPDATE — reverses old stock, replaces items, restores new stock,
-     * reposts the voucher via postOrUpdateEntries() (replaces existing
-     * lines rather than duplicating).
+     * re-resolves sale_invoice_id in case the invoice number was changed,
+     * reposts the voucher via postOrUpdateEntries().
      */
     public function update(Request $request, $id)
     {
@@ -179,9 +190,14 @@ class SaleReturnController extends Controller
                 }
             }
 
+            $invoice = !empty($validated['sale_invoice_no'])
+                ? SaleInvoice::where('invoice_no', $validated['sale_invoice_no'])->first()
+                : null;
+
             $return->update([
                 'account_id'      => $validated['account_id'],
                 'return_date'     => $validated['return_date'],
+                'sale_invoice_id' => $invoice->id ?? null,
                 'sale_invoice_no' => $validated['sale_invoice_no'] ?? null,
                 'remarks'         => $validated['remarks'] ?? null,
             ]);

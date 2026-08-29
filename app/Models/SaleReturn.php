@@ -37,4 +37,9 @@ class SaleReturn extends Model
     {
         return $this->morphMany(Voucher::class, 'reference');
     }
+
+    public function invoice()
+    {
+        return $this->belongsTo(SaleInvoice::class, 'sale_invoice_id');
+    }
 }

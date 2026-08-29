@@ -6,7 +6,13 @@
 <div class="row">
   <div class="col">
     <section class="card">
-      <header class="card-header"><h2 class="card-title">Trip Settlements</h2></header>
+      <header class="card-header"><h2 class="card-title">Trip Settlements</h2>
+        <div>
+          <a href="{{ route('settlements.report') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-chart-bar"></i> Report
+          </a>
+        </div>
+      </header>
       <div class="card-body">
         <table class="table table-bordered table-striped" id="setTable">
           <thead><tr><th>#</th><th>Date</th><th>Settlement #</th><th>Trip</th><th>Delivery Manager</th><th>Cash</th><th>Returns</th><th>WHT</th><th>Cleared?</th><th></th></tr></thead>

@@ -90,6 +90,15 @@
               <tr class="fw-bold {{ $invoice->balance_due > 0 ? 'text-danger' : 'text-success' }}">
                 <td>Balance Due</td><td class="text-end">{{ number_format($invoice->balance_due, 2) }}</td>
               </tr>
+              @php $returnedValue = $invoice->returned_value; @endphp
+              @if($returnedValue > 0)
+                <tr class="text-danger">
+                    <td>Less: Returns</td><td class="text-end">-{{ number_format($returnedValue, 2) }}</td>
+                </tr>
+                <tr class="fw-bold">
+                    <td>Net After Return</td><td class="text-end">{{ number_format($invoice->net_after_return, 2) }}</td>
+                </tr>
+              @endif
             </table>
           </div>
         </div>

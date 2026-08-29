@@ -275,6 +275,39 @@
             </div>
         </div>
 
+        <div class="tab-pane fade" id="booker_wise" role="tabpanel">
+            <form method="GET" action="{{ route('reports.sale') }}" class="row g-2 mb-3 no-print">
+                <input type="hidden" name="tab" value="booker_wise">
+                <div class="col-md-2"><input type="date" name="from_date" value="{{ request('from_date', $from) }}" class="form-control"></div>
+                <div class="col-md-2"><input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control"></div>
+                <div class="col-md-3">
+                    <select name="booker_id" class="form-control select2-js">
+                        <option value="">All Bookers</option>
+                        @foreach($bookers as $b)
+                            <option value="{{ $b->id }}" {{ request('booker_id') == $b->id ? 'selected' : '' }}>{{ $b->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
+            </form>
+
+            <table class="table table-bordered table-sm">
+                <thead class="table-dark"><tr><th>Booker</th><th class="text-end">Orders Invoiced</th><th class="text-end">Qty</th><th class="text-end">Total Sales</th></tr></thead>
+                <tbody>
+                    @forelse($reports['booker_wise'] as $row)
+                    <tr>
+                        <td>{{ $row['booker']->name ?? 'N/A' }}</td>
+                        <td class="text-end">{{ $row['count'] }}</td>
+                        <td class="text-end">{{ number_format($row['quantity'], 2) }}</td>
+                        <td class="text-end fw-bold">{{ number_format($row['amount'], 2) }}</td>
+                    </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-center text-muted py-3">No booker activity in this period.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
         {{-- ══════════════════ TAB 6: MONTHLY SUMMARY) ══════════════════ --}}
         <div class="tab-pane fade" id="monthly_summary" role="tabpanel">
             <form method="GET" class="mb-3"><input type="hidden" name="tab" value="monthly_summary">

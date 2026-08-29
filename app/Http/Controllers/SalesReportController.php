@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SaleInvoice;
 use App\Models\SaleInvoiceItem;
+use App\Models\User;
 use App\Models\SaleOrder;
 use App\Models\SaleReturn;  
 use App\Models\DispatchTrip;
@@ -24,20 +25,18 @@ class SalesReportController extends Controller
 
         $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
         $to   = $request->to_date ?? Carbon::now()->toDateString();
+        $bookers = User::where('user_type', 'mobile')->orderBy('name')->get();
 
         $reports = [
             'sale_register'   => $this->saleRegister($request, $from, $to),
             'dispatch_report' => $this->dispatchReport($request, $from, $to),
             'item_wise'       => $this->itemWise($request, $from, $to),
             'customer_wise'   => $this->customerWise($request, $from, $to),
+            'booker_wise' => $this->bookerWise($request, $from, $to),
             'monthly_summary' => $this->monthlySummary($request),
             'sale_return'     => $this->saleReturnRegister($request, $from, $to),
         ];
-
-        return view(
-            'reports.sales_reports',
-            compact('reports', 'customers', 'from', 'to')
-        );
+        return view('reports.sale_reports', compact('reports', 'from', 'to', 'customers', 'bookers'));
     }
 
     // ── TAB 1: SALE REGISTER ─────────────────────────────────────
@@ -55,6 +54,7 @@ class SalesReportController extends Controller
         $rows = collect();
 
         foreach ($invoices as $invoice) {
+            $returnedValue = $invoice->returned_value;
             foreach ($invoice->items as $item) {
                 $rows->push([
                     'invoice_no' => $invoice->invoice_no,
@@ -65,6 +65,7 @@ class SalesReportController extends Controller
                     'qty'        => $item->quantity,
                     'rate'       => $item->price,
                     'amount'     => $item->quantity * $item->price,
+                    'returned'   => $returnedValue > 0 ? true : false,
                 ]);
             }
         }
@@ -193,6 +194,30 @@ class SalesReportController extends Controller
         }
 
         return $query->latest('return_date')->get();
+    }
+
+    private function bookerWise(Request $request, string $from, string $to)
+    {
+        $query = SaleOrder::with('booker')
+            ->where('status', 'invoiced')
+            ->whereBetween('order_date', [$from, $to]);
+
+        if ($request->filled('booker_id')) {
+            $query->where('booker_id', $request->booker_id);
+        }
+
+        return $query->get()
+            ->groupBy('booker_id')
+            ->map(function ($orders) {
+                return [
+                    'booker'   => $orders->first()->booker,
+                    'count'    => $orders->count(),
+                    'quantity' => $orders->sum(fn ($o) => $o->items->sum('quantity') ?? $o->total_quantity),
+                    'amount'   => $orders->sum('total_amount'),
+                ];
+            })
+            ->sortByDesc('amount')
+            ->values();
     }
 
     public function exportExcel(Request $request, string $tab)
