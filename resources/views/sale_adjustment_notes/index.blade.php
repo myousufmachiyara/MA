@@ -25,25 +25,36 @@
             </tr>
           </thead>
           <tbody>
-            @forelse($notes as $note)
-            <tr>
-              <td>{{ strtoupper($note->note_type[0]) }}N-{{ $note->note_no }}</td>
-              <td><span class="badge bg-{{ $note->note_type === 'credit' ? 'success' : 'warning text-dark' }}">{{ ucfirst($note->note_type) }}</span></td>
-              <td>{{ \Carbon\Carbon::parse($note->note_date)->format('d-M-Y') }}</td>
-              <td>SI-{{ $note->invoice->invoice_no ?? '—' }}</td>
-              <td>{{ $note->invoice->customer->name ?? 'N/A' }}</td>
-              <td class="text-end">{{ number_format($note->amount, 2) }}</td>
-              <td>{{ $note->reason }}</td>
-              <td><a href="{{ route('sale_adjustment_notes.show', $note->id) }}" class="text-primary" title="View"><i class="fas fa-eye"></i></a></td>
-            </tr>
-            @empty
-              <tr><td colspan="8" class="text-center text-muted py-3">No adjustment notes recorded.</td></tr>
-            @endforelse
+              @foreach($notes as $note)
+              <tr>
+                <td>{{ strtoupper($note->note_type[0]) }}N-{{ $note->note_no }}</td>
+                <td><span class="badge bg-{{ $note->note_type === 'credit' ? 'success' : 'warning text-dark' }}">{{ ucfirst($note->note_type) }}</span></td>
+                <td>{{ \Carbon\Carbon::parse($note->note_date)->format('d-M-Y') }}</td>
+                <td>SI-{{ $note->invoice->invoice_no ?? '—' }}</td>
+                <td>{{ $note->invoice->customer->name ?? 'N/A' }}</td>
+                <td class="text-end">{{ number_format($note->amount, 2) }}</td>
+                <td>{{ $note->reason }}</td>
+                <td><a href="{{ route('sale_adjustment_notes.show', $note->id) }}" class="text-primary" title="View"><i class="fas fa-eye"></i></a></td>
+              </tr>
+              @endforeach
           </tbody>
         </table>
       </div>
     </section>
   </div>
 </div>
-<script>$(document).ready(() => $('#notesTable').DataTable({ pageLength: 50, order: [[2, 'desc']] }));</script>
+<script>
+$(document).ready(function () {
+    $('#notesTable').DataTable({
+        pageLength: 50,
+        order: [[2, 'desc']],
+        columnDefs: [
+            { targets: '_all', orderable: true }
+        ],
+        // FIX: don't let DataTables try to interpret the "no data" row's colspan
+        // as if it were a normal 8-column row.
+        initComplete: function () {}
+    });
+});
+</script>
 @endsection
