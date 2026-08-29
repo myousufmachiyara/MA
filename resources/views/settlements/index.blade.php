@@ -7,11 +7,9 @@
   <div class="col">
     <section class="card">
       <header class="card-header"><h2 class="card-title">Trip Settlements</h2>
-        <div>
-          <a href="{{ route('settlements.report') }}" class="btn btn-sm btn-outline-secondary">
+          <a href="{{ route('settlements.report') }}" class="btn btn-sm btn-danger">
             <i class="fas fa-chart-bar"></i> Report
           </a>
-        </div>
       </header>
       <div class="card-body">
         <table class="table table-bordered table-striped" id="setTable">
