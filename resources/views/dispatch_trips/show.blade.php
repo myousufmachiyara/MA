@@ -48,7 +48,7 @@
         @endif
 
         {{-- ── Orders in this trip ────────────────────────────── --}}
-        <h5>Orders in this Trip ({{ $trip->orders->count() }})</h5>
+        <h2 class="card-title">Orders in this Trip ({{ $trip->orders->count() }})</h2>
         <table class="table table-bordered table-sm mb-4">
           <thead><tr><th>Order #</th><th>Customer</th><th class="text-end">Qty</th><th class="text-end">Amount</th><th>Terms</th><th>Status</th>@if($trip->status === 'planned')<th>Action</th>@endif</tr></thead>
           <tbody>
@@ -131,7 +131,7 @@
 
         {{-- ── Generated invoices (after dispatch) ──────────────── --}}
         @if($trip->invoices->count())
-        <h5 class="mt-4">Generated Invoices</h5>
+        <h2 class="card-title mt-4">Generated Invoices</h2>
         <table class="table table-bordered table-sm">
           <thead><tr><th>Invoice #</th><th>Customer</th><th>Net</th><th>GST</th><th>Total</th><th>WHT (info)</th><th></th></tr></thead>
           <tbody>
