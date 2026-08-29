@@ -49,7 +49,7 @@
               <td>{{ $item->variation->sku ?? '—' }}</td>
               <td class="text-end">{{ number_format($item->qty ?? 0, 2) }}</td>
               <td class="text-end">{{ number_format($item->price ?? 0, 2) }}</td>
-              <td class="text-end">{{ number_format($item->line_value ?? (($item->quantity ?? 0) * ($item->price ?? 0)), 2) }}</td>
+              <td class="text-end">{{ number_format($item->line_value ?? (($item->qty ?? 0) * ($item->price ?? 0)), 2) }}</td>
             </tr>
             @empty
               <tr><td colspan="5" class="text-center text-muted py-3">No items on this return.</td></tr>
