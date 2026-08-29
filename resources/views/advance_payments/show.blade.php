@@ -20,7 +20,7 @@
         <p><strong>Remaining (Unadjusted):</strong> <span class="fw-bold {{ $advance->remaining_amount > 0 ? 'text-success' : 'text-muted' }}">PKR {{ number_format($advance->remaining_amount, 2) }}</span></p>
         <p><strong>Remarks:</strong> {{ $advance->remarks ?? '—' }}</p>
 
-        <h5 class="mt-4">Adjustment History</h5>
+        <h2 class="card-title mt-4">Adjustment History</<h5 class="mt-4">>
         <table class="table table-bordered table-sm mb-4">
           <thead><tr><th>Date</th><th>Invoice</th><th class="text-end">Amount Adjusted</th></tr></thead>
           <tbody>
@@ -39,7 +39,7 @@
         </table>
 
         @if($advance->remaining_amount > 0)
-        <h5>Adjust Against Invoice</h5>
+        <h2 class="card-title">Adjust Against Invoice</h2>
         <form action="{{ route('advance_payments.adjust', $advance->id) }}" method="POST" class="row g-2 align-items-end" id="adjustForm">
           @csrf
           <input type="hidden" name="invoice_type" id="adjust_invoice_type">
