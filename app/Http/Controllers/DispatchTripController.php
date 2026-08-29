@@ -170,13 +170,13 @@ class DispatchTripController extends Controller
         $pdf->Cell(0, 4, 'Delivery Manager: ' . ($trip->deliveryManager->name ?? 'N/A'), 0, 1, 'L');
         $pdf->Ln(2);
 
-        $html = '<table border="1" cellpadding="2" style="font-size:7px;">
+        $html = '<table border="1" cellpadding="2" style="font-size:8px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="8%">S.No</th>
-                    <th width="52%">Product Description</th>
-                    <th width="20%">Pack Size</th>
-                    <th width="20%">No. of Cases</th>
+                    <th width="10%">S.No</th>
+                    <th width="40%">Product Description</th>
+                    <th width="40%">Pack Size</th>
+                    <th width="10%">No. of Cases</th>
                 </tr>
             </thead>
             <tbody>';
@@ -186,9 +186,9 @@ class DispatchTripController extends Controller
             $totalCases += $row['qty'];
             $html .= '<tr>
                 <td width="10%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="50%">' . e($row['product']) . '</td>
-                <td width="20%" style="text-align:center;">' . e($row['pack_size']) . '</td>
-                <td width="20%" style="text-align:center;">' . number_format($row['qty'], 0) . '</td>
+                <td width="40%">' . e($row['product']) . '</td>
+                <td width="40%" style="text-align:center;">' . e($row['pack_size']) . '</td>
+                <td width="10%" style="text-align:center;">' . number_format($row['qty'], 0) . '</td>
             </tr>';
         }
 
