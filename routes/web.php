@@ -100,7 +100,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/{id}', [PurchaseInvoiceController::class, 'update'])->middleware('check.permission:purchase_invoices.edit')->name('update');
         Route::delete('/{id}', [PurchaseInvoiceController::class, 'destroy'])->middleware('check.permission:purchase_invoices.delete')->name('destroy');
         Route::put('/{id}/restore', [PurchaseInvoiceController::class, 'restore'])->middleware('check.permission:purchase_invoices.edit')->name('restore');
-        Route::get('/{id}/print', [PurchaseInvoiceController::class, 'print'])->middleware('check.permission:purchase_invoices.print')->name('print');
+        Route::get('/{id}/print', [PurchaseInvoiceController::class, 'print'])->middleware('check.permission:purchase_invoices.index')->name('print');
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -113,8 +113,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', [SaleOrderController::class, 'edit'])->middleware('check.permission:sale_orders.edit')->name('edit');
         Route::put('/{id}', [SaleOrderController::class, 'update'])->middleware('check.permission:sale_orders.edit')->name('update');
         Route::put('/{id}/cancel', [SaleOrderController::class, 'cancel'])->middleware('check.permission:sale_orders.edit')->name('cancel');
-        Route::get('/export/pdf', [SaleOrderController::class, 'exportPdf'])->middleware('check.permission:sale_orders.print')->name('export.pdf');
-        Route::get('/export/excel', [SaleOrderController::class, 'exportExcel'])->middleware('check.permission:sale_orders.print')->name('export.excel');
+        Route::get('/export/pdf', [SaleOrderController::class, 'exportPdf'])->middleware('check.permission:sale_orders.index')->name('export.pdf');
+        Route::get('/export/excel', [SaleOrderController::class, 'exportExcel'])->middleware('check.permission:sale_orders.index')->name('export.excel');
     });
 
     // ─────────────────────────────────────────────────────────────
@@ -125,7 +125,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/create', [DispatchTripController::class, 'create'])->middleware('check.permission:dispatch_trips.create')->name('create');
         Route::post('/', [DispatchTripController::class, 'store'])->middleware('check.permission:dispatch_trips.create')->name('store');
         Route::get('/{id}', [DispatchTripController::class, 'show'])->middleware('check.permission:dispatch_trips.index')->name('show');
-        Route::get('/{id}/load-sheet', [DispatchTripController::class, 'loadSheet'])->middleware('check.permission:dispatch_trips.print')->name('loadSheet');
+        Route::get('/{id}/load-sheet', [DispatchTripController::class, 'loadSheet'])->middleware('check.permission:dispatch_trips.index')->name('loadSheet');
         Route::post('/{id}/add-orders', [DispatchTripController::class, 'addOrders'])->middleware('check.permission:dispatch_trips.edit')->name('addOrders');
         Route::delete('/{id}/orders/{orderId}', [DispatchTripController::class, 'removeOrder'])->middleware('check.permission:dispatch_trips.edit')->name('removeOrder');
         Route::post('/{id}/dispatch', [DispatchTripController::class, 'dispatch'])->middleware('check.permission:dispatch_trips.edit')->name('dispatch');
@@ -157,12 +157,12 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', [SaleInvoiceController::class, 'edit'])->middleware('check.permission:sale_invoices.edit')->name('edit');
         Route::put('/{id}', [SaleInvoiceController::class, 'update'])->middleware('check.permission:sale_invoices.edit')->name('update');
         Route::delete('/{id}', [SaleInvoiceController::class, 'destroy'])->middleware('check.permission:sale_invoices.delete')->name('destroy');
-        Route::get('/{id}/print', [SaleInvoiceController::class, 'print'])->middleware('check.permission:sale_invoices.print')->name('print');
-        Route::get('/{id}/thermal-receipt', [SaleInvoiceController::class, 'thermalReceipt'])->middleware('check.permission:sale_invoices.print')->name('thermalReceipt');
+        Route::get('/{id}/print', [SaleInvoiceController::class, 'print'])->middleware('check.permission:sale_invoices.index')->name('print');
+        Route::get('/{id}/thermal-receipt', [SaleInvoiceController::class, 'thermalReceipt'])->middleware('check.permission:sale_invoices.index')->name('thermalReceipt');
     });
 
     // ─────────────────────────────────────────────────────────────
-    // Sale Return — no edit/update; has AJAX helpers
+    // Sale Return
     // ─────────────────────────────────────────────────────────────
     Route::prefix('sale_return')->name('sale_return.')->group(function () {
         Route::get('/', [SaleReturnController::class, 'index'])->middleware('check.permission:sale_return.index')->name('index');
@@ -171,7 +171,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}', [SaleReturnController::class, 'show'])->middleware('check.permission:sale_return.index')->name('show');
         Route::get('/{id}/edit', [SaleReturnController::class, 'edit'])->middleware('check.permission:sale_return.edit')->name('edit');
         Route::put('/{id}', [SaleReturnController::class, 'update'])->middleware('check.permission:sale_return.edit')->name('update');
-        Route::get('/{id}/print', [SaleReturnController::class, 'print'])->middleware('check.permission:sale_return.print')->name('print');
+        Route::get('/{id}/print', [SaleReturnController::class, 'print'])->middleware('check.permission:sale_return.index')->name('print');
         Route::delete('/{id}', [SaleReturnController::class, 'destroy'])->middleware('check.permission:sale_return.delete')->name('destroy');
     });
     Route::get('/sale-returns/search-invoices', [SaleReturnController::class, 'searchInvoices'])->name('sale_returns.searchInvoices');
@@ -182,7 +182,7 @@ Route::middleware(['auth'])->group(function () {
     // ─────────────────────────────────────────────────────────────
     Route::get('/sale_adjustment_notes/search-invoices', [SaleAdjustmentNoteController::class, 'searchInvoices'])->name('sale_adjustment_notes.searchInvoices');
     Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
-    
+
     // ─────────────────────────────────────────────────────────────
     // Advance Payments
     // ─────────────────────────────────────────────────────────────
@@ -280,7 +280,7 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/{id}/edit', [$controller, 'edit'])->middleware("check.permission:$permission.edit")->name("vouchers.edit");
                 Route::put('/{id}', [$controller, 'update'])->middleware("check.permission:$permission.edit")->name("vouchers.update");
                 Route::delete('/{id}', [$controller, 'destroy'])->middleware("check.permission:$permission.delete")->name("vouchers.destroy");
-                Route::get('/{id}/print', [$controller, 'print'])->middleware("check.permission:$permission.print")->name('vouchers.print');
+                Route::get('/{id}/print', [$controller, 'print'])->middleware("check.permission:$permission.index")->name('vouchers.print');
             });
 
             continue;
@@ -294,7 +294,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get("$uri/$param/edit", [$controller, 'edit'])->middleware("check.permission:$permission.edit")->name("$uri.edit");
         Route::put("$uri/$param", [$controller, 'update'])->middleware("check.permission:$permission.edit")->name("$uri.update");
         Route::delete("$uri/$param", [$controller, 'destroy'])->middleware("check.permission:$permission.delete")->name("$uri.destroy");
-        Route::get("$uri/$param/print", [$controller, 'print'])->middleware("check.permission:$permission.print")->name("$uri.print");
+        Route::get("$uri/$param/print", [$controller, 'print'])->middleware("check.permission:$permission.index")->name("$uri.print");
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -306,7 +306,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('sale', [SalesReportController::class, 'saleReports'])->name('sale');
         Route::get('accounts', [AccountsReportController::class, 'accounts'])->name('accounts');
     });
-    
+
     Route::get('reports/accounts/export/{tab}', [AccountsReportController::class, 'exportExcel'])->name('reports.accounts.exportExcel');
     Route::get('reports/inventory/export/{tab}', [InventoryReportController::class, 'exportExcel'])->name('reports.inventory.exportExcel');
     Route::get('reports/purchase/export/{tab}', [PurchaseReportController::class, 'exportExcel'])->name('reports.purchase.exportExcel');
