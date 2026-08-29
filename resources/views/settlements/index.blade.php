@@ -6,7 +6,8 @@
 <div class="row">
   <div class="col">
     <section class="card">
-      <header class="card-header"><h2 class="card-title">Trip Settlements</h2>
+      <header class="card-header d-flex justify-content-between align-items-center">
+          <h2 class="card-title">Trip Settlements</h2>
           <a href="{{ route('settlements.report') }}" class="btn btn-sm btn-danger">
             <i class="fas fa-chart-bar"></i> Report
           </a>
