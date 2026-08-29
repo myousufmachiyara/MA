@@ -26,7 +26,6 @@ class SettlementController extends Controller
         $settlements = Settlement::with(['dispatchTrip.deliveryManager', 'allocations.invoice.vouchers'])
             ->latest('settlement_date')
             ->get();
-
         return view('settlements.index', compact('settlements'));
     }
 

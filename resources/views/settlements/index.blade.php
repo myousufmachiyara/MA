@@ -23,7 +23,7 @@
               <td>{{ number_format($s->total_wht_amount, 2) }}</td>
               <td>
                 {{-- settlements/index.blade.php --}}
-                @php $firstVoucher = $settlement->allocations->first()?->invoice?->vouchers->sortByDesc('voucher_date')->first(); @endphp
+                @php $firstVoucher = $s->allocations->first()?->invoice?->vouchers->sortByDesc('voucher_date')->first(); @endphp
                 @if($firstVoucher)
                   <a href="{{ route('vouchers.print', ['type' => $firstVoucher->voucher_type, 'id' => $firstVoucher->id]) }}" target="_blank" class="text-success me-1" title="GL Impact">
                     <i class="fas fa-book"></i>
