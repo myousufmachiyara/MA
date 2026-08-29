@@ -13,18 +13,19 @@
 
     <ul class="nav nav-tabs" id="reportTabs" role="tablist">
         @foreach ([
-            'general_ledger'   => 'General Ledger',
-            'trial_balance'    => 'Trial Balance',
-            'profit_loss'      => 'Profit & Loss',
-            'balance_sheet'    => 'Balance Sheet',
-            'party_ledger'     => 'Party Ledger',
-            'receivables'      => 'Receivables',
-            'payables'         => 'Payables',
-            'cash_book'        => 'Cash Book',
-            'bank_book'        => 'Bank Book',
-            'journal_book'     => 'Journal / Day Book',
-            'expense_analysis' => 'Expense Analysis',
-            'cash_flow'        => 'Cash Flow',
+            'general_ledger'     => 'General Ledger',
+            'trial_balance'      => 'Trial Balance',
+            'profit_loss'        => 'Profit & Loss',
+            'balance_sheet'      => 'Balance Sheet',
+            'party_ledger'       => 'Party Ledger',
+            'receivables'        => 'Receivables',
+            'receivables_aging'  => 'Receivables Aging',
+            'payables'           => 'Payables',
+            'cash_book'          => 'Cash Book',
+            'bank_book'          => 'Bank Book',
+            'journal_book'       => 'Journal / Day Book',
+            'expense_analysis'   => 'Expense Analysis',
+            'cash_flow'          => 'Cash Flow',
         ] as $key => $label)
             <li class="nav-item">
                 <a class="nav-link {{ $loop->first ? 'active' : '' }}"
@@ -37,23 +38,25 @@
     <div class="tab-content mt-3" id="reportTabsContent">
 
         @foreach ([
-            'general_ledger'   => 'General Ledger',
-            'trial_balance'    => 'Trial Balance',
-            'profit_loss'      => 'Profit & Loss',
-            'balance_sheet'    => 'Balance Sheet',
-            'party_ledger'     => 'Party Ledger',
-            'receivables'      => 'Receivables',
-            'payables'         => 'Payables',
-            'cash_book'        => 'Cash Book',
-            'bank_book'        => 'Bank Book',
-            'journal_book'     => 'Journal / Day Book',
-            'expense_analysis' => 'Expense Analysis',
-            'cash_flow'        => 'Cash Flow',
+            'general_ledger'     => 'General Ledger',
+            'trial_balance'      => 'Trial Balance',
+            'profit_loss'        => 'Profit & Loss',
+            'balance_sheet'      => 'Balance Sheet',
+            'party_ledger'       => 'Party Ledger',
+            'receivables'        => 'Receivables',
+            'receivables_aging'  => 'Receivables Aging',
+            'payables'           => 'Payables',
+            'cash_book'          => 'Cash Book',
+            'bank_book'          => 'Bank Book',
+            'journal_book'       => 'Journal / Day Book',
+            'expense_analysis'   => 'Expense Analysis',
+            'cash_flow'          => 'Cash Flow',
         ] as $key => $label)
 
         <div class="tab-pane fade {{ $loop->first ? 'show active' : '' }}"
              id="{{ $key }}" role="tabpanel">
 
+            @if($key !== 'receivables_aging')
             <form method="GET" action="{{ route('reports.accounts') }}" class="row g-2 mb-3 no-print">
                 <input type="hidden" name="tab" value="{{ $key }}">
                 <div class="col-md-2">
@@ -82,7 +85,26 @@
                         <i class="fas fa-file-pdf"></i> Export PDF
                     </button>
                 </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.accounts.exportExcel', array_merge(['tab' => $key], request()->only(['from_date', 'to_date', 'account_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
+                </div>
             </form>
+            @else
+            <div class="row g-2 mb-3 no-print">
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('{{ $key }}', '{{ $label }}')">
+                        <i class="fas fa-file-pdf"></i> Export PDF
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.accounts.exportExcel', array_merge(['tab' => $key], request()->only(['from_date', 'to_date', 'account_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
+                </div>
+            </div>
+            @endif
 
             <div class="table-responsive" id="report-table-{{ $key }}">
                 <table class="table table-bordered table-striped align-middle table-sm">
@@ -100,6 +122,8 @@
                             <tr><th>Assets</th><th class="text-end">Amount</th><th>Liabilities &amp; Equity</th><th class="text-end">Amount</th></tr>
                         @elseif ($key === 'receivables')
                             <tr><th>Account</th><th class="text-end">Total Receivable</th></tr>
+                        @elseif ($key === 'receivables_aging')
+                            <tr><th>Customer</th><th class="text-end">0-30 Days</th><th class="text-end">31-60 Days</th><th class="text-end">61-90 Days</th><th class="text-end">90+ Days</th><th class="text-end">Total Due</th></tr>
                         @elseif ($key === 'payables')
                             <tr><th>Account</th><th class="text-end">Total Payable</th></tr>
                         @elseif (in_array($key, ['cash_book', 'bank_book']))
@@ -120,6 +144,21 @@
                     </thead>
                     <tbody>
 
+                    @if ($key === 'receivables_aging')
+                        @forelse ($reports[$key] ?? [] as $r)
+                        <tr>
+                            <td>{{ $r['name'] }}</td>
+                            <td class="text-end">{{ $r['bucket'] === '0-30' ? number_format($r['due'], 2) : '-' }}</td>
+                            <td class="text-end">{{ $r['bucket'] === '31-60' ? number_format($r['due'], 2) : '-' }}</td>
+                            <td class="text-end">{{ $r['bucket'] === '61-90' ? number_format($r['due'], 2) : '-' }}</td>
+                            <td class="text-end">{{ $r['bucket'] === '90+' ? number_format($r['due'], 2) : '-' }}</td>
+                            <td class="text-end fw-bold">{{ number_format($r['due'], 2) }}</td>
+                        </tr>
+                        @empty
+                            <tr><td colspan="6" class="text-center text-muted py-3">No outstanding receivables.</td></tr>
+                        @endforelse
+
+                    @else
                     @forelse ($reports[$key] ?? [] as $row)
                         <tr class="{{ ($row['is_opening'] ?? false) ? 'table-secondary fw-bold' : '' }}">
 
@@ -175,6 +214,7 @@
                     @empty
                         <tr><td colspan="10" class="text-center text-muted py-3">No data found for the selected period.</td></tr>
                     @endforelse
+                    @endif
 
                     </tbody>
 
@@ -183,6 +223,19 @@
                         <tr>
                             <td class="text-end">Total:</td>
                             <td class="text-end">{{ number_format(collect($reports[$key])->sum(fn($r) => (float) str_replace(',', '', $r[1])), 2) }}</td>
+                        </tr>
+                    </tfoot>
+                    @endif
+
+                    @if ($key === 'receivables_aging' && count($reports[$key] ?? []) > 0)
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td class="text-end">Total:</td>
+                            <td class="text-end">{{ number_format(collect($reports[$key])->where('bucket', '0-30')->sum('due'), 2) }}</td>
+                            <td class="text-end">{{ number_format(collect($reports[$key])->where('bucket', '31-60')->sum('due'), 2) }}</td>
+                            <td class="text-end">{{ number_format(collect($reports[$key])->where('bucket', '61-90')->sum('due'), 2) }}</td>
+                            <td class="text-end">{{ number_format(collect($reports[$key])->where('bucket', '90+')->sum('due'), 2) }}</td>
+                            <td class="text-end">{{ number_format(collect($reports[$key])->sum('due'), 2) }}</td>
                         </tr>
                     </tfoot>
                     @endif

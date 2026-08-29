@@ -140,6 +140,7 @@ Route::middleware(['auth'])->group(function () {
     // Settlements
     // ─────────────────────────────────────────────────────────────
     Route::prefix('settlements')->name('settlements.')->group(function () {
+        Route::get('/report', [SettlementController::class, 'report'])->name('report');
         Route::get('/', [SettlementController::class, 'index'])->middleware('check.permission:settlements.index')->name('index');
         Route::get('/{id}', [SettlementController::class, 'show'])->middleware('check.permission:settlements.index')->name('show');
         Route::put('/{id}/clear', [SettlementController::class, 'clearToOffice'])->middleware('check.permission:settlements.edit')->name('clear');
@@ -179,9 +180,9 @@ Route::middleware(['auth'])->group(function () {
     // ─────────────────────────────────────────────────────────────
     // Debit / Credit Notes
     // ─────────────────────────────────────────────────────────────
-    Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
     Route::get('/sale_adjustment_notes/search-invoices', [SaleAdjustmentNoteController::class, 'searchInvoices'])->name('sale_adjustment_notes.searchInvoices');
-
+    Route::resource('sale_adjustment_notes', SaleAdjustmentNoteController::class)->only(['index', 'create', 'store', 'show']);
+    
     // ─────────────────────────────────────────────────────────────
     // Advance Payments
     // ─────────────────────────────────────────────────────────────
@@ -305,4 +306,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('sale', [SalesReportController::class, 'saleReports'])->name('sale');
         Route::get('accounts', [AccountsReportController::class, 'accounts'])->name('accounts');
     });
+    
+    Route::get('reports/accounts/export/{tab}', [AccountsReportController::class, 'exportExcel'])->name('reports.accounts.exportExcel');
+    Route::get('reports/inventory/export/{tab}', [InventoryReportController::class, 'exportExcel'])->name('reports.inventory.exportExcel');
+    Route::get('reports/purchase/export/{tab}', [PurchaseReportController::class, 'exportExcel'])->name('reports.purchase.exportExcel');
+    Route::get('reports/sale/export/{tab}', [SalesReportController::class, 'exportExcel'])->name('reports.sale.exportExcel');
 });

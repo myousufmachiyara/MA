@@ -8,9 +8,11 @@ use App\Models\Voucher;
 use App\Models\AccountingEntry;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use App\Traits\ExportsCsv;
 
 class AccountsReportController extends Controller
 {
+    use ExportsCsv;
     private const DEBIT_NATURE = ['customer', 'receivable', 'cash', 'bank', 'inventory', 'delivery_clearing', 'expenses', 'cogs'];
     private const CREDIT_NATURE = ['vendor', 'payable', 'liability', 'equity', 'revenue'];
 
@@ -37,6 +39,7 @@ class AccountsReportController extends Controller
             'balance_sheet'    => $this->balanceSheet($trialBalance, $profitLoss), // FIX: reuses, doesn't recompute
             'party_ledger'     => $this->partyLedger($accountId, $from, $to),
             'receivables'      => $this->receivables($chartOfAccounts, $asOfMap),
+            'receivables_aging' => $this->receivablesAging($chartOfAccounts, $asOfMap, $to),
             'payables'         => $this->payables($chartOfAccounts, $asOfMap),
             'cash_book'        => $this->cashBook($from, $to),
             'bank_book'        => $this->bankBook($from, $to),
@@ -514,5 +517,104 @@ class AccountsReportController extends Controller
             ['Total Cash Outflow (Payments)', $this->fmt($outflow)],
             ['Net Increase / Decrease in Cash', $this->fmt($inflow - $outflow)],
         ];
+    }
+
+    private function receivablesAging(Collection $chartOfAccounts, array $asOfMap, string $to)
+    {
+        $today = Carbon::parse($to);
+
+        return $chartOfAccounts->whereIn('account_type', ['customer', 'receivable'])
+            ->map(function ($a) use ($asOfMap, $today) {
+                $bal = $this->balanceFromMap($asOfMap, $a->id);
+                $due = $bal['debit'] - $bal['credit'];
+                if ($due <= 0) return null;
+
+                // Oldest unpaid invoice date for this customer, as a rough aging anchor
+                $oldestInvoice = \App\Models\SaleInvoice::where('customer_id', $a->id)
+                    ->whereRaw('total_amount + net_adjustment - paid_amount > 0')
+                    ->orderBy('invoice_date')
+                    ->value('invoice_date');
+
+                $daysOld = $oldestInvoice ? $today->diffInDays(Carbon::parse($oldestInvoice)) : 0;
+
+                $bucket = match (true) {
+                    $daysOld <= 30  => '0-30',
+                    $daysOld <= 60  => '31-60',
+                    $daysOld <= 90  => '61-90',
+                    default         => '90+',
+                };
+
+                return ['name' => $a->name, 'due' => $due, 'bucket' => $bucket, 'days' => $daysOld];
+            })
+            ->filter()
+            ->values();
+    }
+
+    public function exportExcel(Request $request, string $tab)
+    {
+        $from      = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
+        $to        = $request->to_date   ?? Carbon::now()->endOfMonth()->toDateString();
+        $accountId = $request->account_id ? (int) $request->account_id : null;
+
+        $chartOfAccounts = ChartOfAccounts::orderBy('name')->get();
+        $asOfMap   = $this->buildBalanceMap(null, null, $to);
+        $periodMap = $this->buildBalanceMap($from, $to, null);
+
+        switch ($tab) {
+            case 'general_ledger':
+            case 'party_ledger':
+                $rows = ($tab === 'party_ledger' ? $this->partyLedger($accountId, $from, $to) : $this->generalLedger($accountId, $from, $to))
+                    ->map(fn ($r) => [$r['date'], $r['account'], $r['reference_label'], $r['narration'], $r['dr'], $r['cr'], $r['balance']]);
+                return $this->exportCsv(['Date', 'Account', 'Voucher/Ref', 'Narration', 'Debit', 'Credit', 'Balance'], $rows->toArray(), "{$tab}.csv");
+
+            case 'trial_balance':
+                $rows = $this->trialBalance($chartOfAccounts, $asOfMap);
+                return $this->exportCsv(['Account', 'Type', 'Debit', 'Credit'], $rows->toArray(), 'trial_balance.csv');
+
+            case 'profit_loss':
+                $rows = $this->profitLoss($chartOfAccounts, $periodMap);
+                return $this->exportCsv(['Particulars', 'Amount'], $rows->toArray(), 'profit_loss.csv');
+
+            case 'balance_sheet':
+                $trial = $this->trialBalance($chartOfAccounts, $asOfMap);
+                $pl    = $this->profitLoss($chartOfAccounts, $periodMap);
+                $rows  = $this->balanceSheet($trial, $pl);
+                return $this->exportCsv(['Assets', 'Amount', 'Liabilities & Equity', 'Amount'], $rows, 'balance_sheet.csv');
+
+            case 'receivables':
+                $rows = $this->receivables($chartOfAccounts, $asOfMap);
+                return $this->exportCsv(['Account', 'Total Receivable'], $rows->toArray(), 'receivables.csv');
+
+            case 'receivables_aging':
+                $rows = $this->receivablesAging($chartOfAccounts, $asOfMap, $to)
+                    ->map(fn ($r) => [$r['name'], $r['bucket'] === '0-30' ? $r['due'] : '', $r['bucket'] === '31-60' ? $r['due'] : '', $r['bucket'] === '61-90' ? $r['due'] : '', $r['bucket'] === '90+' ? $r['due'] : '', $r['due']]);
+                return $this->exportCsv(['Customer', '0-30 Days', '31-60 Days', '61-90 Days', '90+ Days', 'Total Due'], $rows->toArray(), 'receivables_aging.csv');
+
+            case 'payables':
+                $rows = $this->payables($chartOfAccounts, $asOfMap);
+                return $this->exportCsv(['Account', 'Total Payable'], $rows->toArray(), 'payables.csv');
+
+            case 'cash_book':
+            case 'bank_book':
+                $rows = ($tab === 'cash_book' ? $this->cashBook($from, $to) : $this->bankBook($from, $to))
+                    ->map(fn ($r) => [$r['date'], $r['dr_account'], $r['cr_account'], $r['reference_label'], $r['narration'], $r['dr'], $r['cr'], $r['balance']]);
+                return $this->exportCsv(['Date', 'Debit Account', 'Credit Account', 'Voucher/Ref', 'Narration', 'Debit', 'Credit', 'Balance'], $rows->toArray(), "{$tab}.csv");
+
+            case 'journal_book':
+                $rows = $this->journalBook($from, $to)
+                    ->map(fn ($r) => [$r['date'], $r['voucher_no'], $r['dr_account'], $r['cr_account'], $r['narration'], $r['amount']]);
+                return $this->exportCsv(['Date', 'Voucher', 'Debit Account', 'Credit Account', 'Narration', 'Amount'], $rows->toArray(), 'journal_book.csv');
+
+            case 'expense_analysis':
+                $rows = $this->expenseAnalysis($chartOfAccounts, $periodMap);
+                return $this->exportCsv(['Expense Head', 'Amount'], $rows->toArray(), 'expense_analysis.csv');
+
+            case 'cash_flow':
+                $rows = $this->cashFlow($from, $to);
+                return $this->exportCsv(['Activity', 'Amount'], $rows, 'cash_flow.csv');
+
+            default:
+                abort(404, 'Unknown report tab.');
+        }
     }
 }

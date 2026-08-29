@@ -44,9 +44,6 @@ class SaleReturnController extends Controller
         return ChartOfAccounts::where('account_code', '501001')->first();
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // INDEX
-    // ─────────────────────────────────────────────────────────────
     public function index()
     {
         $returns = SaleReturn::with(['customer', 'items.product', 'items.variation'])
@@ -60,9 +57,6 @@ class SaleReturnController extends Controller
         return view('sale_returns.index', compact('returns'));
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // CREATE FORM
-    // ─────────────────────────────────────────────────────────────
     public function create()
     {
         return view('sale_returns.create', [
@@ -75,12 +69,8 @@ class SaleReturnController extends Controller
     /**
      * STORE
      *
-     * Posts ONE combined voucher with multiple accounting_entries lines
-     * via VoucherService — matches the pattern used everywhere else
-     * (Purchase Invoice, Dispatch Trip, Settlement, Stock Adjustment).
-     * The old flat Voucher::create() calls here were broken (missing
-     * voucher_no, wrong column names) and would have thrown a SQL error
-     * on the very first real submission.
+     * Posts ONE combined voucher via VoucherService — replaces the old
+     * broken Voucher::create() calls (wrong columns, no voucher_no).
      */
     public function store(Request $request)
     {
@@ -144,9 +134,6 @@ class SaleReturnController extends Controller
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // EDIT FORM
-    // ─────────────────────────────────────────────────────────────
     public function edit($id)
     {
         $return = SaleReturn::with(['items.product', 'items.variation'])->findOrFail($id);
@@ -160,13 +147,9 @@ class SaleReturnController extends Controller
     }
 
     /**
-     * UPDATE
-     *
-     * 1. Reverse stock from the old item set
-     * 2. Replace items, restore stock for the new set
-     * 3. Repost the voucher via VoucherService::postOrUpdateEntries()
-     *    (replaces the existing voucher's lines instead of creating a
-     *    duplicate — same as PurchaseInvoiceController::update())
+     * UPDATE — reverses old stock, replaces items, restores new stock,
+     * reposts the voucher via postOrUpdateEntries() (replaces existing
+     * lines rather than duplicating).
      */
     public function update(Request $request, $id)
     {
@@ -189,7 +172,6 @@ class SaleReturnController extends Controller
         try {
             $return = SaleReturn::with('items')->findOrFail($id);
 
-            // Step 1: reverse stock from old items
             foreach ($return->items as $oldItem) {
                 if ($oldItem->variation_id) {
                     $variation = ProductVariation::find($oldItem->variation_id);
@@ -197,7 +179,6 @@ class SaleReturnController extends Controller
                 }
             }
 
-            // Step 2: update header
             $return->update([
                 'account_id'      => $validated['account_id'],
                 'return_date'     => $validated['return_date'],
@@ -205,7 +186,6 @@ class SaleReturnController extends Controller
                 'remarks'         => $validated['remarks'] ?? null,
             ]);
 
-            // Step 3: replace items + restore stock
             $return->items()->delete();
             $totalAmount = 0;
 
@@ -228,7 +208,6 @@ class SaleReturnController extends Controller
                 }
             }
 
-            // Step 4: repost voucher (replaces existing lines, doesn't duplicate)
             $this->postReturnVoucher($return, $totalAmount, $validated['account_id'], $validated['return_date'], true);
 
             DB::commit();
@@ -244,8 +223,8 @@ class SaleReturnController extends Controller
     }
 
     /**
-     * Shared voucher posting logic for store() and update() — one combined
-     * voucher: Dr Sales Revenue + Dr Inventory / Cr Customer + Cr COGS.
+     * Shared voucher posting for store()/update().
+     * One combined voucher: Dr Sales Revenue + Dr Inventory / Cr Customer + Cr COGS.
      */
     private function postReturnVoucher(SaleReturn $return, float $totalAmount, int $customerId, string $returnDate, bool $isUpdate = false): void
     {
@@ -291,9 +270,6 @@ class SaleReturnController extends Controller
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // SHOW
-    // ─────────────────────────────────────────────────────────────
     public function show($id)
     {
         $return = SaleReturn::with('items.product', 'items.variation', 'customer', 'vouchers')
@@ -301,9 +277,6 @@ class SaleReturnController extends Controller
         return view('sale_returns.show', compact('return'));
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // DESTROY
-    // ─────────────────────────────────────────────────────────────
     public function destroy($id)
     {
         DB::beginTransaction();
@@ -333,9 +306,6 @@ class SaleReturnController extends Controller
         }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // PRINT (PDF)
-    // ─────────────────────────────────────────────────────────────
     public function print($id)
     {
         $return = SaleReturn::with(['customer', 'items.product', 'items.variation'])->findOrFail($id);
@@ -354,15 +324,15 @@ class SaleReturnController extends Controller
         $pdf->SetFont('helvetica', '', 10);
         $pdf->Cell(0, 5, 'Return #: SR-' . $return->id, 0, 1, 'L');
         $pdf->Cell(0, 5, 'Date: ' . Carbon::parse($return->return_date)->format('d-M-Y'), 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Against Invoice:' . ($return->sale_invoice_no ?? '—'), 0, 1, 'L');
+        $pdf->Cell(0, 5, 'Against Invoice: SI-' . ($return->sale_invoice_no ?? '—'), 0, 1, 'L');
         $pdf->Cell(0, 5, 'Customer: ' . ($return->customer->name ?? 'N/A'), 0, 1, 'L');
         $pdf->Ln(4);
 
         $html = '<table border="1" cellpadding="5" style="font-size:10px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="5%">#</th><th width="20%">Item</th><th width="30%">Variation</th>
-                    <th width="15%">Qty</th><th width="15%">Price</th><th width="15%">Value</th>
+                    <th width="5%">#</th><th width="35%">Item</th><th width="20%">Variation</th>
+                    <th width="15%">Qty</th><th width="12%">Price</th><th width="13%">Value</th>
                 </tr>
             </thead><tbody>';
 
@@ -371,12 +341,12 @@ class SaleReturnController extends Controller
             $lineValue = $item->qty * $item->price;
             $total += $lineValue;
             $html .= '<tr>
-                <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="20%">' . e($item->product->name ?? '-') . '</td>
-                <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
-                <td width="15%" style="text-align:center;">' . number_format($item->qty, 2) . '</td>
-                <td width="15%" style="text-align:right;">' . number_format($item->price, 2) . '</td>
-                <td width="15%" style="text-align:right;">' . number_format($lineValue, 2) . '</td>
+                <td style="text-align:center;">' . ($i + 1) . '</td>
+                <td>' . e($item->product->name ?? '-') . '</td>
+                <td style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                <td style="text-align:center;">' . number_format($item->qty, 2) . '</td>
+                <td style="text-align:right;">' . number_format($item->price, 2) . '</td>
+                <td style="text-align:right;">' . number_format($lineValue, 2) . '</td>
             </tr>';
         }
 

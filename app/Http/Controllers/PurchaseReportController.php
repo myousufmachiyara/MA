@@ -6,9 +6,12 @@ use App\Models\PurchaseInvoice;
 use App\Models\ChartOfAccounts;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Traits\ExportsCsv;
 
 class PurchaseReportController extends Controller
 {
+    use ExportsCsv;
+
     public function purchaseReports(Request $request)
     {
         $vendors = ChartOfAccounts::where('account_type', 'vendor')->orderBy('name')->get();
@@ -28,8 +31,8 @@ class PurchaseReportController extends Controller
 
     private function purchaseRegister(Request $request, string $from, string $to)
     {
-        $query = PurchaseInvoice::with(['vendor', 'items'])
-            ->whereBetween('invoice_date', [$from, $to]);
+        $query = PurchaseInvoice::with(['vendor', 'items.product', 'items.variation'])
+        ->whereBetween('invoice_date', [$from, $to]);
 
         if ($request->filled('vendor_id')) {
             $query->where('vendor_id', $request->vendor_id);
@@ -72,5 +75,65 @@ class PurchaseReportController extends Controller
             ->filter(fn ($row) => $row['invoice_count'] > 0)
             ->sortByDesc('total_amount')
             ->values();
+    }
+
+    public function exportExcel(Request $request, string $tab)
+    {
+        $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
+        $to   = $request->to_date   ?? Carbon::now()->toDateString();
+
+        switch ($tab) {
+            case 'purchase_register':
+                $invoices = $this->purchaseRegister($request, $from, $to);
+                $rows = collect();
+
+                foreach ($invoices as $invoice) {
+                    if ($invoice->items->isEmpty()) {
+                        $rows->push([
+                            $invoice->invoice_no,
+                            Carbon::parse($invoice->invoice_date)->format('d-M-Y'),
+                            $invoice->vendor->name ?? 'N/A',
+                            '—', '—', '', '', $invoice->total_amount,
+                        ]);
+                        continue;
+                    }
+                    foreach ($invoice->items as $item) {
+                        $rows->push([
+                            $invoice->invoice_no,
+                            Carbon::parse($invoice->invoice_date)->format('d-M-Y'),
+                            $invoice->vendor->name ?? 'N/A',
+                            $item->product->name ?? 'N/A',
+                            $item->variation->sku ?? '—',
+                            $item->quantity,
+                            $item->price,
+                            $item->quantity * $item->price,
+                        ]);
+                    }
+                }
+
+                return $this->exportCsv(
+                    ['Invoice No.', 'Date', 'Vendor', 'Item', 'Variation', 'Qty', 'Price', 'Amount'],
+                    $rows->toArray(),
+                    'purchase_register.csv'
+                );
+
+            case 'vendor_wise':
+                $rows = $this->vendorWise($request, $from, $to)
+                    ->map(fn ($r) => [
+                        $r['vendor']->name ?? 'N/A',
+                        $r['invoice_count'],
+                        $r['total_quantity'],
+                        $r['total_amount'],
+                    ]);
+
+                return $this->exportCsv(
+                    ['Vendor', 'Invoice Count', 'Total Quantity', 'Total Amount'],
+                    $rows->toArray(),
+                    'vendor_wise_purchase.csv'
+                );
+
+            default:
+                abort(404, 'Unknown report tab.');
+        }
     }
 }

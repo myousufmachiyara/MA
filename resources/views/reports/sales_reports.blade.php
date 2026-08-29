@@ -30,67 +30,51 @@
                 <div class="col-md-3">
                     <select name="customer_id" class="form-control select2-js">
                         <option value="">All Customers</option>
-                        @foreach($customers as $c)
+                        @foreach($customers ?? [] as $c)
                             <option value="{{ $c->id }}" {{ request('customer_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
                         @endforeach
                     </select>
                 </div>
+                <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
+                <div class="col-md-1"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('sale_register', 'Sale Register')"><i class="fas fa-file-pdf"></i></button></div>
                 <div class="col-md-2">
-                    <select name="source" class="form-control">
-                        <option value="">All Sources</option>
-                        <option value="manual" {{ request('source') === 'manual' ? 'selected' : '' }}>Manual / Direct</option>
-                        <option value="trip" {{ request('source') === 'trip' ? 'selected' : '' }}>Dispatch Trip</option>
-                    </select>
+                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'sale_register'], request()->only(['from_date', 'to_date', 'customer_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
                 </div>
-                <div class="col-md-1"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i></button></div>
-                <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('sale_register', 'Sale Register')"><i class="fas fa-file-pdf"></i> PDF</button></div>
             </form>
 
             <div class="table-responsive" id="report-table-sale_register">
                 <table class="table table-bordered table-striped align-middle table-sm">
                     <thead class="table-dark">
                         <tr>
-                            <th>Date</th><th>Invoice #</th><th>Customer</th><th>Source</th>
-                            <th class="text-end">Net</th><th class="text-end">GST</th><th class="text-end">Total</th>
-                            <th class="text-end">Paid</th><th class="text-end">Due</th><th class="no-print">Print</th>
+                            <th>Invoice No.</th><th>Date</th><th>Customer Name</th><th>Item</th>
+                            <th>Variation</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($reports['sale_register'] as $inv)
+                        @forelse($reports['sale_register'] as $row)
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($inv->invoice_date)->format('d-M-Y') }}</td>
-                            <td>SI-{{ $inv->invoice_no }}</td>
-                            <td>{{ $inv->customer->name ?? 'N/A' }}</td>
-                            <td>
-                                @if($inv->dispatch_trip_id)
-                                    <span class="badge bg-info text-dark">Trip TR-{{ $inv->dispatchTrip->trip_no ?? '' }}</span>
-                                @else
-                                    <span class="badge bg-secondary">Manual</span>
-                                @endif
-                            </td>
-                            <td class="text-end">{{ number_format($inv->net_amount, 2) }}</td>
-                            <td class="text-end">{{ number_format($inv->gst_amount, 2) }}</td>
-                            <td class="text-end fw-bold">{{ number_format($inv->total_amount, 2) }}</td>
-                            <td class="text-end">{{ number_format($inv->paid_amount, 2) }}</td>
-                            <td class="text-end {{ ($inv->total_amount - $inv->paid_amount) > 0 ? 'text-danger fw-bold' : '' }}">
-                                {{ number_format($inv->total_amount - $inv->paid_amount, 2) }}
-                            </td>
-                            <td class="no-print"><a href="{{ route('sale_invoices.print', $inv->id) }}" target="_blank" class="ref-link"><i class="fas fa-print"></i></a></td>
+                            <td>SI-{{ $row['invoice_no'] }}</td>
+                            <td>{{ $row['date'] }}</td>
+                            <td>{{ $row['customer'] }}</td>
+                            <td>{{ $row['item'] }}</td>
+                            <td>{{ $row['variation'] }}</td>
+                            <td class="text-end">{{ number_format($row['qty'], 2) }}</td>
+                            <td class="text-end">{{ number_format($row['rate'], 2) }}</td>
+                            <td class="text-end fw-bold">{{ number_format($row['amount'], 2) }}</td>
                         </tr>
                         @empty
-                            <tr><td colspan="10" class="text-center text-muted py-3">No sale invoices found in this period.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-3">No sales found in this period.</td></tr>
                         @endforelse
                     </tbody>
-                    @if($reports['sale_register']->count() > 0)
+                    @if(count($reports['sale_register']) > 0)
                     <tfoot class="table-light fw-bold">
                         <tr>
-                            <td colspan="4" class="text-end">Total:</td>
-                            <td class="text-end">{{ number_format($reports['sale_register']->sum('net_amount'), 2) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_register']->sum('gst_amount'), 2) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_register']->sum('total_amount'), 2) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_register']->sum('paid_amount'), 2) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_register']->sum(fn($i) => $i->total_amount - $i->paid_amount), 2) }}</td>
-                            <td class="no-print"></td>
+                            <td colspan="5" class="text-end">Total:</td>
+                            <td class="text-end">{{ number_format(collect($reports['sale_register'])->sum('qty'), 2) }}</td>
+                            <td></td>
+                            <td class="text-end">{{ number_format(collect($reports['sale_register'])->sum('amount'), 2) }}</td>
                         </tr>
                     </tfoot>
                     @endif
@@ -115,6 +99,11 @@
                 </div>
                 <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
                 <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('dispatch_report', 'Dispatch Report')"><i class="fas fa-file-pdf"></i> PDF</button></div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'dispatch_report'], request()->only(['from_date', 'to_date', 'status']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </div>
             </form>
 
             <div class="table-responsive" id="report-table-dispatch_report">
@@ -175,6 +164,11 @@
                 </div>
                 <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
                 <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('item_wise', 'Item-wise Sale')"><i class="fas fa-file-pdf"></i> PDF</button></div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'item_wise'], request()->only(['from_date', 'to_date', 'customer_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </div>
             </form>
 
             <div class="table-responsive" id="report-table-item_wise">
@@ -230,6 +224,11 @@
                 </div>
                 <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
                 <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('customer_wise', 'Customer-wise Sale')"><i class="fas fa-file-pdf"></i> PDF</button></div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'customer_wise'], request()->only(['from_date', 'to_date', 'customer_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </div>
             </form>
 
             <div class="table-responsive" id="report-table-customer_wise">
@@ -281,6 +280,9 @@
             <form method="GET" class="mb-3"><input type="hidden" name="tab" value="monthly_summary">
                 <input type="number" name="year" value="{{ $reports['monthly_summary']['year'] }}" class="form-control d-inline-block w-auto">
                 <button class="btn btn-primary">Go</button>
+                <a href="{{ route('reports.sale.exportExcel', ['tab' => 'monthly_summary', 'year' => $reports['monthly_summary']['year']]) }}" class="btn btn-success ms-2">
+                    <i class="fas fa-file-excel"></i> Excel
+                </a>
             </form>
             <table class="table table-bordered table-sm">
                 <thead class="table-dark"><tr><th>Month</th><th class="text-end">Invoices</th><th class="text-end">Sales</th><th class="text-end">COGS</th><th class="text-end">Gross Profit</th></tr></thead>
@@ -309,6 +311,12 @@
                 <div class="col-md-2"><input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control"></div>
                 <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
                 <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('sale_return', 'Sale Return Register')"><i class="fas fa-file-pdf"></i> PDF</button></div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'sale_return'], request()->only(['from_date', 'to_date']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
+                </div>
+            
             </form>
 
             <div class="table-responsive" id="report-table-sale_return">

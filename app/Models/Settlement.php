@@ -24,4 +24,9 @@ class Settlement extends Model
     {
         return $this->hasMany(SettlementAllocation::class);
     }
+
+    public function vouchers()
+    {
+        return $this->morphMany(Voucher::class, 'reference');
+    }
 }

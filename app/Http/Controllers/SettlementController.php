@@ -23,7 +23,10 @@ class SettlementController extends Controller
 
     public function index()
     {
-        $settlements = Settlement::with('dispatchTrip.deliveryManager')->latest()->get();
+        $settlements = Settlement::with(['dispatchTrip.deliveryManager', 'allocations.invoice.vouchers'])
+            ->latest('settlement_date')
+            ->get();
+
         return view('settlements.index', compact('settlements'));
     }
 
@@ -255,5 +258,18 @@ class SettlementController extends Controller
             Log::error('[Settlement] Clear error', ['message' => $e->getMessage()]);
             return back()->with('error', 'Error: ' . $e->getMessage());
         }
+    }
+
+    public function report(Request $request)
+    {
+        $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
+        $to   = $request->to_date   ?? Carbon::now()->toDateString();
+
+        $settlements = Settlement::with(['dispatchTrip.deliveryManager', 'allocations'])
+            ->whereBetween('settlement_date', [$from, $to])
+            ->latest('settlement_date')
+            ->get();
+
+        return view('settlements.report', compact('settlements', 'from', 'to'));
     }
 }

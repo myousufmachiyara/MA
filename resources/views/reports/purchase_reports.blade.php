@@ -45,10 +45,15 @@
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
                 </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('purchase_register', 'Purchase Register')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('purchase_register', 'Purchase Register')" title="Export PDF">
+                        <i class="fas fa-file-pdf"></i>
                     </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.purchase.exportExcel', array_merge(['tab' => 'purchase_register'], request()->only(['from_date', 'to_date', 'vendor_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
                 </div>
             </form>
 
@@ -114,10 +119,15 @@
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
                 </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('vendor_wise', 'Vendor-wise Purchase')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('vendor_wise', 'Vendor-wise Purchase')" title="Export PDF">
+                        <i class="fas fa-file-pdf"></i>
                     </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.purchase.exportExcel', array_merge(['tab' => 'vendor_wise'], request()->only(['from_date', 'to_date', 'vendor_id']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
                 </div>
             </form>
 

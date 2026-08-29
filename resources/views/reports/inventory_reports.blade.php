@@ -51,10 +51,15 @@
                 <div class="col-md-2">
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
                 </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('stock_in_hand', 'Stock in Hand')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('stock_in_hand', 'Stock in Hand')" title="Export PDF">
+                        <i class="fas fa-file-pdf"></i>
                     </button>
+                </div>
+                <div class="col-md-1">
+                    <a href="{{ route('reports.inventory.exportExcel', array_merge(['tab' => 'stock_in_hand'], request()->only(['search', 'category_id', 'stock_status']))) }}" class="btn btn-success w-100" title="Export Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </a>
                 </div>
             </form>
 
@@ -138,8 +143,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2 mt-2">
-                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button>
+                <div class="col-md-1 mt-2">
+                    <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i></button>
+                </div>
+                <div class="col-md-1 mt-2">
+                    <a href="{{ route('reports.inventory.exportExcel', array_merge(['tab' => 'stock_movement'], request()->only(['from_date', 'to_date', 'item_id', 'direction', 'reference_type', 'location_id']))) }}" class="btn btn-success w-100" title="Export Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </a>
                 </div>
             </form>
 
@@ -201,10 +211,15 @@
                     <button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Load</button>
                 </div>
                 @if(request('ledger_item_id'))
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('item_ledger', 'Item Ledger')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                <div class="col-md-1">
+                    <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('item_ledger', 'Item Ledger')" title="Export PDF">
+                        <i class="fas fa-file-pdf"></i>
                     </button>
+                </div>
+                <div class="col-md-1">
+                    <a href="{{ route('reports.inventory.exportExcel', array_merge(['tab' => 'item_ledger'], request()->only(['ledger_item_id', 'ledger_variation_id', 'from_date', 'to_date']))) }}" class="btn btn-success w-100" title="Export Excel">
+                        <i class="fas fa-file-excel"></i>
+                    </a>
                 </div>
                 @endif
             </form>
@@ -285,8 +300,13 @@
                 </div>
                 <div class="col-md-2">
                     <button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('stock_by_location', 'Stock by Location')">
-                        <i class="fas fa-file-pdf"></i> Export PDF
+                        <i class="fas fa-file-pdf"></i> PDF
                     </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ route('reports.inventory.exportExcel', array_merge(['tab' => 'stock_by_location'], request()->only(['location_id', 'search']))) }}" class="btn btn-success w-100">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </a>
                 </div>
             </form>
 

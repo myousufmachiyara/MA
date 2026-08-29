@@ -10,9 +10,11 @@ use App\Models\LocationStock;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Traits\ExportsCsv;
 
 class InventoryReportController extends Controller
 {
+    use ExportsCsv;
     public function inventoryReports(Request $request)
     {
         $categories = ProductCategory::orderBy('name')->get();
@@ -170,5 +172,61 @@ class InventoryReportController extends Controller
         }
 
         return $query->orderBy('location_id')->get();
+    }
+    public function exportExcel(Request $request, string $tab)
+    {
+        switch ($tab) {
+            case 'stock_in_hand':
+                $rows = $this->stockInHand($request)
+                    ->map(fn ($r) => [$r['item'], $r['category'], $r['variation'], $r['quantity'], $r['cost_price'], $r['value']]);
+                return $this->exportCsv(['Item', 'Category', 'Variation', 'Quantity', 'Cost Price', 'Value'], $rows->toArray(), 'stock_in_hand.csv');
+
+            case 'stock_movement':
+                $from = $request->from_date ?? \Carbon\Carbon::now()->startOfMonth()->toDateString();
+                $to   = $request->to_date   ?? \Carbon\Carbon::now()->toDateString();
+                $rows = $this->stockMovement($request, $from, $to)->getCollection()
+                    ->map(fn ($m) => [
+                        $m->created_at->format('d-M-Y h:i A'),
+                        $m->product->name ?? 'N/A',
+                        $m->variation->sku ?? '—',
+                        $m->location->name ?? '—',
+                        $m->direction === 'in' ? 'In' : 'Out',
+                        $m->quantity,
+                        $m->balance_after,
+                        $m->reference_label,
+                        $m->creator->name ?? '—',
+                    ]);
+                return $this->exportCsv(['Date', 'Item', 'Variation', 'Location', 'Direction', 'Qty', 'Balance', 'Source', 'By'], $rows->toArray(), 'stock_movement.csv');
+
+            case 'item_ledger':
+                $from = $request->from_date ?? \Carbon\Carbon::now()->startOfMonth()->toDateString();
+                $to   = $request->to_date   ?? \Carbon\Carbon::now()->toDateString();
+                $ledger = $this->itemLedger($request, $from, $to);
+
+                if (!$ledger || ($ledger['needs_variation'] ?? false)) {
+                    return $this->exportCsv(['Message'], [['Select a specific item and variation first.']], 'item_ledger.csv');
+                }
+
+                $rows = collect([['', '', 'Opening Balance', $ledger['opening'], '', '']])
+                    ->concat($ledger['movements']->map(fn ($m) => [
+                        $m->created_at->format('d-M-Y h:i A'),
+                        $m->direction === 'in' ? 'In' : 'Out',
+                        $m->quantity,
+                        $m->balance_after,
+                        $m->location->name ?? '—',
+                        $m->reference_label,
+                    ]))
+                    ->push(['', '', 'Closing Balance', $ledger['closing'], '', '']);
+
+                return $this->exportCsv(['Date', 'Direction', 'Qty', 'Balance', 'Location', 'Source'], $rows->toArray(), 'item_ledger.csv');
+
+            case 'stock_by_location':
+                $rows = $this->stockByLocation($request)
+                    ->map(fn ($s) => [$s->location->name ?? 'N/A', $s->product->name ?? 'N/A', $s->variation->sku ?? '—', $s->quantity]);
+                return $this->exportCsv(['Location', 'Item', 'Variation', 'Quantity'], $rows->toArray(), 'stock_by_location.csv');
+
+            default:
+                abort(404, 'Unknown report tab.');
+        }
     }
 }

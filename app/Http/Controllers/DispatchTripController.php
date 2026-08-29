@@ -163,18 +163,18 @@ class DispatchTripController extends Controller
 
         $this->addCompanyHeader($pdf, 'LOAD SUMMARY');
 
-        $pdf->SetFont('helvetica', '', 10);
-        $pdf->Cell(0, 5, 'Trip #: TR-' . $trip->trip_no, 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Date: ' . \Carbon\Carbon::parse($trip->trip_date)->format('d-M-Y'), 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Vehicle: ' . $trip->vehicle_no, 0, 1, 'L');
-        $pdf->Cell(0, 5, 'Delivery Manager: ' . ($trip->deliveryManager->name ?? 'N/A'), 0, 1, 'L');
-        $pdf->Ln(4);
+        $pdf->SetFont('helvetica', '', 8);
+        $pdf->Cell(0, 4, 'Trip #: TR-' . $trip->trip_no, 0, 1, 'L');
+        $pdf->Cell(0, 4, 'Date: ' . \Carbon\Carbon::parse($trip->trip_date)->format('d-M-Y'), 0, 1, 'L');
+        $pdf->Cell(0, 4, 'Vehicle: ' . $trip->vehicle_no, 0, 1, 'L');
+        $pdf->Cell(0, 4, 'Delivery Manager: ' . ($trip->deliveryManager->name ?? 'N/A'), 0, 1, 'L');
+        $pdf->Ln(2);
 
-        $html = '<table border="1" cellpadding="5" style="font-size:10px;">
+        $html = '<table border="1" cellpadding="2" style="font-size:7px;">
             <thead>
                 <tr style="background-color:#f2f2f2;font-weight:bold;text-align:center;">
-                    <th width="10%">S.No</th>
-                    <th width="50%">Product Description</th>
+                    <th width="8%">S.No</th>
+                    <th width="52%">Product Description</th>
                     <th width="20%">Pack Size</th>
                     <th width="20%">No. of Cases</th>
                 </tr>

@@ -10,9 +10,12 @@ use App\Models\DispatchTrip;
 use App\Models\ChartOfAccounts;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Traits\ExportsCsv;
 
 class SalesReportController extends Controller
 {
+    use ExportsCsv;
+
     public function saleReports(Request $request)
     {
         $customers = ChartOfAccounts::where('account_type', 'customer')
@@ -41,19 +44,32 @@ class SalesReportController extends Controller
 
     private function saleRegister(Request $request, string $from, string $to)
     {
-        $query = SaleInvoice::with(['customer', 'dispatchTrip'])
+        $query = SaleInvoice::with(['customer', 'items.product', 'items.variation'])
             ->whereBetween('invoice_date', [$from, $to]);
 
         if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
         }
-        if ($request->filled('source')) {
-            $request->source === 'manual'
-                ? $query->whereNull('dispatch_trip_id')
-                : $query->whereNotNull('dispatch_trip_id');
+
+        $invoices = $query->orderBy('invoice_date')->get();
+        $rows = collect();
+
+        foreach ($invoices as $invoice) {
+            foreach ($invoice->items as $item) {
+                $rows->push([
+                    'invoice_no' => $invoice->invoice_no,
+                    'date'       => Carbon::parse($invoice->invoice_date)->format('d-M-Y'),
+                    'customer'   => $invoice->customer->name ?? 'N/A',
+                    'item'       => $item->product->name ?? 'N/A',
+                    'variation'  => $item->variation->sku ?? '—',
+                    'qty'        => $item->quantity,
+                    'rate'       => $item->price,
+                    'amount'     => $item->quantity * $item->price,
+                ]);
+            }
         }
 
-        return $query->orderByDesc('invoice_date')->get();
+        return $rows;
     }
 
     // ── TAB 2: DISPATCH REPORT ───────────────────────────────────
@@ -177,5 +193,55 @@ class SalesReportController extends Controller
         }
 
         return $query->latest('return_date')->get();
+    }
+
+    public function exportExcel(Request $request, string $tab)
+    {
+        $from = $request->from_date ?? Carbon::now()->startOfMonth()->toDateString();
+        $to   = $request->to_date   ?? Carbon::now()->toDateString();
+
+        switch ($tab) {
+            case 'sale_register':
+                $rows = $this->saleRegister($request, $from, $to)
+                    ->map(fn ($r) => [$r['invoice_no'], $r['date'], $r['customer'], $r['item'], $r['variation'], $r['qty'], $r['rate'], $r['amount']]);
+                return $this->exportCsv(['Invoice No.', 'Date', 'Customer Name', 'Item', 'Variation', 'Qty', 'Rate', 'Amount'], $rows->toArray(), 'sale_register.csv');
+
+            case 'dispatch_report':
+                $rows = $this->dispatchReport($request, $from, $to)
+                    ->map(fn ($t) => [
+                        Carbon::parse($t->trip_date)->format('d-M-Y'),
+                        $t->trip_no, $t->vehicle_no, $t->deliveryManager->name ?? 'N/A',
+                        $t->total_orders, $t->invoices->count(), $t->total_amount, ucfirst($t->status),
+                    ]);
+                return $this->exportCsv(['Date', 'Trip #', 'Vehicle', 'Delivery Manager', 'Orders', 'Invoices', 'Amount', 'Status'], $rows->toArray(), 'dispatch_report.csv');
+
+            case 'item_wise':
+                $rows = $this->itemWise($request, $from, $to)
+                    ->map(fn ($r) => [$r['item'], $r['variation'], $r['quantity'], $r['revenue'], $r['cogs'], $r['profit']]);
+                return $this->exportCsv(['Item', 'Variation', 'Qty Sold', 'Revenue', 'COGS', 'Gross Profit'], $rows->toArray(), 'item_wise_sale.csv');
+
+            case 'customer_wise':
+                $rows = $this->customerWise($request, $from, $to)
+                    ->map(fn ($r) => [$r['customer']->name, $r['invoice_count'], $r['total_quantity'], $r['total_amount'], $r['total_paid'], $r['outstanding']]);
+                return $this->exportCsv(['Customer', 'Invoices', 'Qty', 'Total', 'Paid', 'Outstanding'], $rows->toArray(), 'customer_wise_sale.csv');
+
+            case 'monthly_summary':
+                $year = $request->filled('year') ? (int) $request->year : now()->year;
+                $data = $this->monthlySummary($request);
+                $rows = collect($data['monthly'])->map(fn ($m) => [$m['month'], $m['count'], $m['amount'], $m['cogs'], $m['profit']]);
+                return $this->exportCsv(['Month', 'Invoices', 'Sales', 'COGS', 'Gross Profit'], $rows->toArray(), "monthly_summary_{$year}.csv");
+
+            case 'sale_return':
+                $rows = $this->saleReturnRegister($request, $from, $to)
+                    ->map(fn ($r) => [
+                        $r->id, Carbon::parse($r->return_date)->format('d-M-Y'), $r->sale_invoice_no ?? '—',
+                        $r->customer->name ?? 'N/A', $r->items->count(),
+                        $r->items->sum(fn ($i) => $i->qty * $i->price),
+                    ]);
+                return $this->exportCsv(['Return #', 'Date', 'Against Invoice', 'Customer', 'Items', 'Total Value'], $rows->toArray(), 'sale_return.csv');
+
+            default:
+                abort(404, 'Unknown report tab.');
+        }
     }
 }
