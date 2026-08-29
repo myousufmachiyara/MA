@@ -36,7 +36,7 @@ class SalesReportController extends Controller
             'monthly_summary' => $this->monthlySummary($request),
             'sale_return'     => $this->saleReturnRegister($request, $from, $to),
         ];
-        return view('reports.sale_reports', compact('reports', 'from', 'to', 'customers', 'bookers'));
+        return view('reports.sales_reports', compact('reports', 'from', 'to', 'customers', 'bookers'));
     }
 
     // ── TAB 1: SALE REGISTER ─────────────────────────────────────
