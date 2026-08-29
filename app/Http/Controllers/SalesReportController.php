@@ -32,7 +32,7 @@ class SalesReportController extends Controller
             'dispatch_report' => $this->dispatchReport($request, $from, $to),
             'item_wise'       => $this->itemWise($request, $from, $to),
             'customer_wise'   => $this->customerWise($request, $from, $to),
-            'booker_wise' => $this->bookerWise($request, $from, $to),
+            'booker_wise'     => $this->bookerWise($request, $from, $to),
             'monthly_summary' => $this->monthlySummary($request),
             'sale_return'     => $this->saleReturnRegister($request, $from, $to),
         ];

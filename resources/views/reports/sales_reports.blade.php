@@ -15,6 +15,7 @@
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#dispatch_report" role="tab">Dispatch Reports</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#item_wise" role="tab">Item-wise Sale</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#customer_wise" role="tab">Customer-wise Sale</a></li>
+        <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#booker_wise" role="tab">Booker-wise Sale</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#monthly_summary" role="tab">Monthly Summary</a></li>
         <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#sale_return" role="tab">Sale Return</a></li>
     </ul>
