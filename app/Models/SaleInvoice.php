@@ -53,15 +53,6 @@ class SaleInvoice extends Model
         return $this->morphMany(Voucher::class, 'reference');
     }
 
-    public function getReturnedValueAttribute(): float
-    {
-        return $this->returns()->sum(fn ($r) => $r->items->sum(fn ($i) => $i->qty * $i->price));
-    }
-
-    public function getNetAfterReturnAttribute(): float
-    {
-        return round($this->total_amount + $this->net_adjustment - $this->returned_value, 2);
-    }
     public function returns()
     {
         return $this->hasMany(SaleReturn::class, 'sale_invoice_id');
