@@ -16,7 +16,7 @@ class DispatchTripController extends Controller
 {
     private function ensureIsDeliveryManager(Request $request, DispatchTrip $trip)
     {
-        if ($trip->delivery_manager_id !== $request->user()->id) {
+        if ((int) $trip->delivery_manager_id !== (int) $request->user()->id) {
             abort(403, 'This trip is not assigned to you.');
         }
     }
