@@ -478,33 +478,40 @@ class SaleInvoiceController extends Controller
                 <th width="10%">Qty</th><th width="15%">Price</th><th width="20%">Total</th>
             </tr></thead><tbody>';
 
-        foreach ($invoice->items as $i => $item) {
-            $lineTotal = $item->quantity * $item->price;
-            $html .= '<tr>
-                <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
-                <td width="20%">' . e($item->product->name ?? '-') . '</td>
-                <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
-                <td width="10%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
-                <td width="15%" style="text-align:right;">' . number_format($item->price, 2) . '</td>
-                <td width="20%" style="text-align:right;">' . number_format($lineTotal, 2) . '</td>
-            </tr>';
-        }
+            $totalQty = 0;
+            foreach ($invoice->items as $i => $item) {
+                $lineTotal = $item->quantity * $item->price;
+                $totalQty += $item->quantity;
+                $html .= '<tr>
+                    <td width="5%" style="text-align:center;">' . ($i + 1) . '</td>
+                    <td width="20%">' . e($item->product->name ?? '-') . '</td>
+                    <td width="30%" style="text-align:center;">' . e($item->variation->sku ?? '-') . '</td>
+                    <td width="10%" style="text-align:center;">' . number_format($item->quantity, 2) . '</td>
+                    <td width="15%" style="text-align:right;">' . number_format($item->price, 2) . '</td>
+                    <td width="20%" style="text-align:right;">' . number_format($lineTotal, 2) . '</td>
+                </tr>';
+            }
 
-        $html .= '<tr><td colspan="5" style="text-align:right;">Net Amount</td><td style="text-align:right;">' . number_format($invoice->net_amount, 2) . '</td></tr>';
-        if ($invoice->is_tax_invoice) {
-            $html .= '<tr><td colspan="5" style="text-align:right;">GST (' . $invoice->gst_rate . '%)</td><td style="text-align:right;">' . number_format($invoice->gst_amount, 2) . '</td></tr>';
-        }
-        $html .= '<tr style="font-weight:bold;"><td colspan="5" style="text-align:right;">Total Amount</td><td style="text-align:right;">' . number_format($invoice->total_amount, 2) . '</td></tr>';
-        if ($invoice->wht_applicable) {
-            $html .= '<tr><td colspan="5" style="text-align:right;">WHT (' . $invoice->wht_rate . '%) — deducted at payment</td><td style="text-align:right;">' . number_format($invoice->wht_amount, 2) . '</td></tr>';
-        }
+            $html .= '<tr style="font-weight:bold;background-color:#fafafa;">
+                <td colspan="3" style="text-align:right;">Total Qty</td>
+                <td style="text-align:center;">' . number_format($totalQty, 2) . '</td>
+                <td colspan="2"></td>
+            </tr>';
+
+            $html .= '<tr><td colspan="5" style="text-align:right;">Net Amount</td><td style="text-align:right;">' . number_format($invoice->net_amount, 2) . '</td></tr>';
+            if ($invoice->is_tax_invoice) {
+                $html .= '<tr><td colspan="5" style="text-align:right;">GST (' . $invoice->gst_rate . '%)</td><td style="text-align:right;">' . number_format($invoice->gst_amount, 2) . '</td></tr>';
+            }
+            $html .= '<tr style="font-weight:bold;"><td colspan="5" style="text-align:right;">Total Amount</td><td style="text-align:right;">' . number_format($invoice->total_amount, 2) . '</td></tr>';
+            if ($invoice->wht_applicable) {
+                $html .= '<tr><td colspan="5" style="text-align:right;">WHT (' . $invoice->wht_rate . '%) — deducted at payment</td><td style="text-align:right;">' . number_format($invoice->wht_amount, 2) . '</td></tr>';
+            }
         $html .= '</tbody></table>';
 
         $pdf->writeHTML($html, true, false, false, false, '');
 
         return $pdf->Output('SI_' . $invoice->invoice_no . '.pdf', 'I');
     }
-
     public function thermalReceipt($id)
     {
         $invoice = SaleInvoice::with(['items.product', 'items.variation', 'customer'])->findOrFail($id);
