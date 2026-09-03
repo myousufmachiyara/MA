@@ -28,5 +28,5 @@ Route::middleware(['auth:sanctum', 'active.user'])->prefix('booker')->group(func
 
     Route::get('/trips', [DispatchTripController::class, 'index']);
     Route::get('/trips/{id}', [DispatchTripController::class, 'show']);
-    Route::post('/trips/{id}/settle', [DispatchTripController::class, 'settle']);
+    Route::post('/trips/{id}/delivered', [DispatchTripController::class, 'updateDelivered']);
 });
