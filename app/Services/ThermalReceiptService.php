@@ -39,16 +39,19 @@ class ThermalReceiptService
         $out .= self::formatRow('Item', 'Qty', 'Amount');
         $out .= str_repeat('-', self::LINE_WIDTH) . "\n";
 
+        $totalQty = 0;
         foreach ($invoice->items as $item) {
             $name = $item->product->name ?? 'Item';
             if ($item->variation) {
                 $name .= ' (' . $item->variation->sku . ')';
             }
             $lineTotal = $item->quantity * $item->price;
+            $totalQty += $item->quantity;
             $out .= self::formatItemLine($name, $item->quantity, $item->price, $lineTotal);
         }
 
         $out .= str_repeat('-', self::LINE_WIDTH) . "\n";
+        $out .= self::formatRightLine('Total Qty', number_format($totalQty, 0));
 
         // ── Totals ──
         $out .= self::formatRightLine('Net Amount', number_format($invoice->net_amount, 2));
