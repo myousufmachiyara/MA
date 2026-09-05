@@ -18,4 +18,9 @@ class SettlementReturnItem extends Model
     {
         return $this->belongsTo(ProductVariation::class, 'variation_id');
     }
+
+    public function allocation()
+    {
+        return $this->belongsTo(SettlementAllocation::class, 'settlement_allocation_id');
+    }
 }
