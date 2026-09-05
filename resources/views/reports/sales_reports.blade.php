@@ -78,6 +78,15 @@
                             <td class="text-end">{{ number_format(collect($reports['sale_register'])->sum('amount'), 2) }}</td>
                         </tr>
                     </tfoot>
+                    <div class="row justify-content-end mt-2">
+                        <div class="col-md-4">
+                            <table class="table table-borderless table-sm mb-0">
+                                <tr><td>Gross Sales</td><td class="text-end">{{ number_format($reports['sale_register_summary']['gross'], 2) }}</td></tr>
+                                <tr class="text-danger"><td>Less: Returns</td><td class="text-end">-{{ number_format($reports['sale_register_summary']['returns'], 2) }}</td></tr>
+                                <tr class="fw-bold border-top"><td>Net Sales (matches ledger)</td><td class="text-end">{{ number_format($reports['sale_register_summary']['net'], 2) }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
                     @endif
                 </table>
             </div>
@@ -344,50 +353,41 @@
                 <div class="col-md-2"><input type="date" name="from_date" value="{{ request('from_date', $from) }}" class="form-control"></div>
                 <div class="col-md-2"><input type="date" name="to_date" value="{{ request('to_date', $to) }}" class="form-control"></div>
                 <div class="col-md-2"><button class="btn btn-primary w-100" type="submit"><i class="fas fa-filter"></i> Filter</button></div>
-                <div class="col-md-2"><button type="button" class="btn btn-danger w-100" onclick="exportReportPDF('sale_return', 'Sale Return Register')"><i class="fas fa-file-pdf"></i> PDF</button></div>
-                <div class="col-md-2">
-                    <a href="{{ route('reports.sale.exportExcel', array_merge(['tab' => 'sale_return'], request()->only(['from_date', 'to_date']))) }}" class="btn btn-success w-100">
-                        <i class="fas fa-file-excel"></i> Excel
-                    </a>
-                </div>
-            
             </form>
 
-            <div class="table-responsive" id="report-table-sale_return">
-                <table class="table table-bordered table-striped align-middle table-sm">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Return #</th><th>Date</th><th>Against Invoice</th><th>Customer</th>
-                            <th class="text-end">Items</th><th class="text-end">Total Value</th><th class="no-print"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($reports['sale_return'] as $ret)
-                        <tr>
-                            <td>SR-{{ $ret->id }}</td>
-                            <td>{{ \Carbon\Carbon::parse($ret->return_date)->format('d-M-Y') }}</td>
-                            <td>{{ $ret->sale_invoice_no ?? '—' }}</td>
-                            <td>{{ $ret->customer->name ?? 'N/A' }}</td>
-                            <td class="text-end">{{ $ret->items->count() }}</td>
-                            <td class="text-end fw-bold">{{ number_format($ret->items->sum(fn($i) => $i->qty * $i->price), 2) }}</td>
-                            <td class="no-print"><a href="{{ route('sale_return.show', $ret->id) }}" class="ref-link"><i class="fas fa-eye"></i></a></td>
-                        </tr>
-                        @empty
-                            <tr><td colspan="7" class="text-center text-muted py-3">No sale returns found in this period.</td></tr>
-                        @endforelse
-                    </tbody>
-                    @if($reports['sale_return']->count() > 0)
-                    <tfoot class="table-light fw-bold">
-                        <tr>
-                            <td colspan="4" class="text-end">Total:</td>
-                            <td class="text-end">{{ $reports['sale_return']->sum(fn($r) => $r->items->count()) }}</td>
-                            <td class="text-end">{{ number_format($reports['sale_return']->sum(fn($r) => $r->items->sum(fn($i) => $i->qty * $i->price)), 2) }}</td>
-                            <td class="no-print"></td>
-                        </tr>
-                    </tfoot>
-                    @endif
-                </table>
-            </div>
+            <table class="table table-bordered table-striped align-middle table-sm">
+                <thead class="table-dark">
+                    <tr><th>Source</th><th>Ref #</th><th>Date</th><th>Customer</th><th>Item</th><th>Variation</th>
+                        <th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr>
+                </thead>
+                <tbody>
+                    @forelse($reports['sale_return'] as $row)
+                    <tr>
+                        <td><span class="badge bg-{{ $row['source'] === 'Settlement' ? 'info text-dark' : 'warning text-dark' }}">{{ $row['source'] }}</span></td>
+                        <td>{{ $row['ref'] }}</td>
+                        <td>{{ $row['date'] }}</td>
+                        <td>{{ $row['customer'] }}</td>
+                        <td>{{ $row['item'] }}</td>
+                        <td>{{ $row['variation'] }}</td>
+                        <td class="text-end">{{ number_format($row['qty'], 2) }}</td>
+                        <td class="text-end">{{ number_format($row['rate'], 2) }}</td>
+                        <td class="text-end fw-bold">{{ number_format($row['amount'], 2) }}</td>
+                    </tr>
+                    @empty
+                        <tr><td colspan="9" class="text-center text-muted py-3">No returns in this period.</td></tr>
+                    @endforelse
+                </tbody>
+                @if($reports['sale_return']->count() > 0)
+                <tfoot class="table-light fw-bold">
+                    <tr>
+                        <td colspan="6" class="text-end">Total Returns:</td>
+                        <td class="text-end">{{ number_format($reports['sale_return']->sum('qty'), 2) }}</td>
+                        <td></td>
+                        <td class="text-end">{{ number_format($reports['sale_return']->sum('amount'), 2) }}</td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
         </div>
 
     </div>

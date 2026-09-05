@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Models\Voucher;
 use App\Services\VoucherService;
+use App\Services\StockService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -71,9 +72,11 @@ class SaleReturnController extends Controller
      *
      * Posts ONE combined voucher via VoucherService. Also resolves
      * sale_invoice_id from the entered sale_invoice_no, so returns are
-     * properly linked to the real invoice record (used by
-     * SaleInvoice::returns()/returned_value for accurate reporting),
-     * not just carrying a loose string.
+     * properly linked to the real invoice record. Stock is restored via
+     * StockService::move() — this is what creates the stock_movements
+     * audit trail row so returns show up in Stock Movement / Item Ledger,
+     * not just the raw stock_quantity total. Works correctly for both
+     * variation and simple (no-variation) products.
      */
     public function store(Request $request)
     {
@@ -94,9 +97,6 @@ class SaleReturnController extends Controller
         try {
             Log::info('[SR] Store started', ['user_id' => Auth::id()]);
 
-            // Resolve the real invoice ID from the entered invoice number,
-            // if one was given. If nothing matches, this stays null and the
-            // return is still saved — just without a linked invoice.
             $invoice = !empty($validated['sale_invoice_no'])
                 ? SaleInvoice::where('invoice_no', $validated['sale_invoice_no'])->first()
                 : null;
@@ -125,10 +125,13 @@ class SaleReturnController extends Controller
                     'price'          => $price,
                 ]);
 
-                if (!empty($item['variation_id'])) {
-                    $variation = ProductVariation::find($item['variation_id']);
-                    $variation?->increment('stock_quantity', $qty);
-                }
+                // FIX: was $variation->increment('stock_quantity', $qty) —
+                // that silently skipped the stock_movements audit trail AND
+                // skipped simple (no-variation) products entirely.
+                StockService::move(
+                    $item['product_id'], $item['variation_id'] ?? null, $qty,
+                    'in', 'sale_return', $return->id, "Sale Return #{$return->id}"
+                );
             }
 
             $this->postReturnVoucher($return, $totalAmount, $validated['customer_id'], $validated['return_date']);
@@ -158,9 +161,9 @@ class SaleReturnController extends Controller
     }
 
     /**
-     * UPDATE — reverses old stock, replaces items, restores new stock,
-     * re-resolves sale_invoice_id in case the invoice number was changed,
-     * reposts the voucher via postOrUpdateEntries().
+     * UPDATE — reverses old stock via StockService (creates a matching
+     * reversal audit trail row), replaces items, restores new stock the
+     * same way, reposts the voucher via postOrUpdateEntries().
      */
     public function update(Request $request, $id)
     {
@@ -183,11 +186,12 @@ class SaleReturnController extends Controller
         try {
             $return = SaleReturn::with('items')->findOrFail($id);
 
+            // FIX: reverse old stock through StockService, not direct decrement
             foreach ($return->items as $oldItem) {
-                if ($oldItem->variation_id) {
-                    $variation = ProductVariation::find($oldItem->variation_id);
-                    $variation?->decrement('stock_quantity', $oldItem->qty);
-                }
+                StockService::move(
+                    $oldItem->product_id, $oldItem->variation_id, $oldItem->qty,
+                    'out', 'sale_return', $return->id, "Reversal — editing Sale Return #{$return->id}"
+                );
             }
 
             $invoice = !empty($validated['sale_invoice_no'])
@@ -218,10 +222,11 @@ class SaleReturnController extends Controller
                     'price'          => $price,
                 ]);
 
-                if (!empty($item['variation_id'])) {
-                    $variation = ProductVariation::find($item['variation_id']);
-                    $variation?->increment('stock_quantity', $qty);
-                }
+                // FIX: restore new stock through StockService, not direct increment
+                StockService::move(
+                    $item['product_id'], $item['variation_id'] ?? null, $qty,
+                    'in', 'sale_return', $return->id, "Updated Sale Return #{$return->id}"
+                );
             }
 
             $this->postReturnVoucher($return, $totalAmount, $validated['account_id'], $validated['return_date'], true);
@@ -293,6 +298,10 @@ class SaleReturnController extends Controller
         return view('sale_returns.show', compact('return'));
     }
 
+    /**
+     * DESTROY — also reverses stock through StockService, not direct
+     * decrement, so the deletion leaves a matching audit trail row too.
+     */
     public function destroy($id)
     {
         DB::beginTransaction();
@@ -301,10 +310,10 @@ class SaleReturnController extends Controller
             $return = SaleReturn::with('items')->findOrFail($id);
 
             foreach ($return->items as $item) {
-                if ($item->variation_id) {
-                    $variation = ProductVariation::find($item->variation_id);
-                    $variation?->decrement('stock_quantity', $item->qty);
-                }
+                StockService::move(
+                    $item->product_id, $item->variation_id, $item->qty,
+                    'out', 'sale_return', $return->id, "Deleted Sale Return #{$return->id}"
+                );
             }
 
             Voucher::where('reference_type', SaleReturn::class)->where('reference_id', $return->id)->delete();

@@ -34,8 +34,16 @@ class SalesReportController extends Controller
             'customer_wise'   => $this->customerWise($request, $from, $to),
             'booker_wise'     => $this->bookerWise($request, $from, $to),
             'monthly_summary' => $this->monthlySummary($request),
-            'sale_return'     => $this->saleReturnRegister($request, $from, $to),
+            'sale_return'     => $this->saleReturnsCombined($request, $from, $to),
         ];
+
+        $totalReturns = $this->saleReturnsCombined($request, $from, $to)->sum('amount');
+        $reports['sale_register_summary'] = [
+            'gross' => collect($reports['sale_register'])->sum('amount'),
+            'returns' => $totalReturns,
+            'net' => collect($reports['sale_register'])->sum('amount') - $totalReturns,
+        ];
+        
         return view('reports.sales_reports', compact('reports', 'from', 'to', 'customers', 'bookers'));
     }
 
@@ -71,6 +79,55 @@ class SalesReportController extends Controller
         }
 
         return $rows;
+    }
+
+    private function saleReturnsCombined(Request $request, string $from, string $to)
+    {
+        $rows = collect();
+
+        // Standalone Sale Returns
+        $standalone = SaleReturn::with(['customer', 'items.product', 'items.variation'])
+            ->whereBetween('return_date', [$from, $to])->get();
+
+        foreach ($standalone as $ret) {
+            foreach ($ret->items as $item) {
+                $rows->push([
+                    'source'    => 'Sale Return',
+                    'ref'       => 'SR-' . $ret->id,
+                    'date'      => Carbon::parse($ret->return_date)->format('d-M-Y'),
+                    'customer'  => $ret->customer->name ?? 'N/A',
+                    'item'      => $item->product->name ?? 'N/A',
+                    'variation' => $item->variation->sku ?? '—',
+                    'qty'       => $item->qty,
+                    'rate'      => $item->price,
+                    'amount'    => $item->qty * $item->price,
+                ]);
+            }
+        }
+
+        // Settlement-time returns
+        $settlementItems = \App\Models\SettlementReturnItem::with(['product', 'variation', 'allocation.invoice.customer', 'allocation.settlement'])
+            ->whereHas('allocation.settlement', fn ($q) => $q->whereBetween('settlement_date', [$from, $to]))
+            ->get();
+
+        foreach ($settlementItems as $item) {
+            $settlement = $item->allocation->settlement ?? null;
+            $invoice    = $item->allocation->invoice ?? null;
+
+            $rows->push([
+                'source'    => 'Settlement',
+                'ref'       => 'ST-' . ($settlement->settlement_no ?? '—'),
+                'date'      => $settlement ? Carbon::parse($settlement->settlement_date)->format('d-M-Y') : '—',
+                'customer'  => $invoice->customer->name ?? 'N/A',
+                'item'      => $item->product->name ?? 'N/A',
+                'variation' => $item->variation->sku ?? '—',
+                'qty'       => $item->quantity,
+                'rate'      => $item->price,
+                'amount'    => $item->quantity * $item->price,
+            ]);
+        }
+
+        return $rows->sortBy('date')->values();
     }
 
     // ── TAB 2: DISPATCH REPORT ───────────────────────────────────
