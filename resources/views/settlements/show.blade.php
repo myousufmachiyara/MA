@@ -39,6 +39,34 @@
             @endforeach
           </tbody>
         </table>
+
+        {{-- ═══════════ On-Trip Sales processed as part of this trip ═══════════ --}}
+        @if(isset($processedAdhocSales) && $processedAdhocSales->count() > 0)
+        <h5 class="mt-4">On-Trip Sales (recorded by delivery manager)</h5>
+        <table class="table table-bordered table-sm">
+          <thead class="table-light"><tr><th>Customer</th><th>Items</th><th class="text-end">Amount</th><th>Resulting Invoice</th></tr></thead>
+          <tbody>
+            @foreach($processedAdhocSales as $adhoc)
+            <tr>
+              <td>{{ $adhoc->customer->name ?? 'N/A' }}</td>
+              <td>
+                @foreach($adhoc->items as $item)
+                  {{ $item->product->name ?? 'N/A' }} — {{ number_format($item->quantity, 2) }} @ {{ number_format($item->price, 2) }}<br>
+                @endforeach
+              </td>
+              <td class="text-end">{{ number_format($adhoc->items->sum(fn($i) => $i->quantity * $i->price), 2) }}</td>
+              <td>
+                @if($adhoc->processedInvoice)
+                  <a href="{{ route('sale_invoices.show', $adhoc->processedInvoice->id) }}">SI-{{ $adhoc->processedInvoice->invoice_no }}</a>
+                @else
+                  —
+                @endif
+              </td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+        @endif
       </div>
     </section>
   </div>

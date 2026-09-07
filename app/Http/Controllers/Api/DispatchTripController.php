@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\DispatchTrip;
 use App\Models\SaleInvoiceItem;
+use App\Models\TripAdhocSale;
+use App\Models\TripAdhocSaleItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -74,6 +76,85 @@ class DispatchTripController extends Controller
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Delivered quantities saved.']);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+        }
+    }
+
+
+    /**
+     * Customers already on this trip (from its invoices) — for the "add to
+     * existing customer" path in the on-trip sale flow.
+     */
+    public function tripCustomers(Request $request, $id)
+    {
+        $trip = DispatchTrip::with('invoices.customer')->findOrFail($id);
+        $this->ensureIsDeliveryManager($request, $trip);
+
+        $customers = $trip->invoices->map(fn ($inv) => [
+            'customer_id'      => $inv->customer_id,
+            'name'             => $inv->customer->name ?? 'N/A',
+            'sale_invoice_id'  => $inv->id,
+            'invoice_no'       => $inv->invoice_no,
+        ])->unique('customer_id')->values();
+
+        return response()->json(['success' => true, 'data' => $customers]);
+    }
+
+    /**
+     * Record an on-trip sale — either extra items for a customer already on
+     * this trip, or a brand-new customer entirely. NOT a SaleOrder — goods are
+     * already delivered, so this deliberately skips the normal
+     * order→dispatch pipeline. Office converts this into (or adds it onto)
+     * a real invoice at settlement time.
+     */
+    public function storeAdhocSale(Request $request, $id)
+    {
+        $trip = DispatchTrip::findOrFail($id);
+        $this->ensureIsDeliveryManager($request, $trip);
+
+        if ($trip->status !== 'dispatched') {
+            return response()->json(['success' => false, 'message' => 'This trip is no longer active for delivery.'], 422);
+        }
+
+        $request->validate([
+            'customer_id'              => 'required|exists:chart_of_accounts,id',
+            'existing_sale_invoice_id' => 'nullable|exists:sale_invoices,id',
+            'payment_terms'            => 'required|in:cash,credit',
+            'remarks'                  => 'nullable|string',
+            'items'                    => 'required|array|min:1',
+            'items.*.product_id'       => 'required|exists:products,id',
+            'items.*.variation_id'     => 'nullable|exists:product_variations,id',
+            'items.*.quantity'         => 'required|numeric|min:0.01',
+            'items.*.price'            => 'required|numeric|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $sale = TripAdhocSale::create([
+                'dispatch_trip_id'         => $trip->id,
+                'customer_id'              => $request->customer_id,
+                'existing_sale_invoice_id' => $request->existing_sale_invoice_id,
+                'payment_terms'            => $request->payment_terms,
+                'remarks'                  => $request->remarks,
+                'status'                   => 'pending',
+                'created_by'               => $request->user()->id,
+            ]);
+
+            foreach ($request->items as $item) {
+                TripAdhocSaleItem::create([
+                    'trip_adhoc_sale_id' => $sale->id,
+                    'product_id'         => $item['product_id'],
+                    'variation_id'       => $item['variation_id'] ?? null,
+                    'quantity'           => $item['quantity'],
+                    'price'              => $item['price'],
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'On-trip sale recorded. Office will finalize at settlement.']);
 
         } catch (\Exception $e) {
             DB::rollBack();

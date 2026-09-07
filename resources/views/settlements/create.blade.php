@@ -5,7 +5,7 @@
 @section('content')
 <div class="row">
   <div class="col">
-    <form action="{{ route('dispatch_trips.settle.store', $trip->id) }}" method="POST">      
+    <form action="{{ route('dispatch_trips.settle.store', $trip->id) }}" method="POST">
       @csrf
       <section class="card">
         <header class="card-header">
@@ -13,6 +13,44 @@
         </header>
 
         <div class="card-body">
+
+          {{-- ═══════════ On-Trip Sales — review before invoicing ═══════════ --}}
+          @if($adhocSales->count() > 0)
+          <div class="alert alert-info">
+            <strong><i class="fas fa-info-circle"></i> On-Trip Sales Recorded</strong> —
+            the delivery manager sold leftover stock while out on this trip. Review each and choose how to process it before saving the settlement.
+          </div>
+          <table class="table table-bordered table-sm mb-4">
+            <thead class="table-light">
+              <tr><th>Customer</th><th>Items</th><th class="text-end">Total</th><th style="width:280px">Action</th></tr>
+            </thead>
+            <tbody>
+              @foreach($adhocSales as $adhoc)
+              <tr>
+                <td>{{ $adhoc->customer->name ?? 'N/A' }}</td>
+                <td>
+                  @foreach($adhoc->items as $item)
+                    {{ $item->product->name ?? 'N/A' }}{{ $item->variation ? ' ('.$item->variation->sku.')' : '' }}
+                    — {{ number_format($item->quantity, 2) }} @ {{ number_format($item->price, 2) }}<br>
+                  @endforeach
+                </td>
+                <td class="text-end fw-bold">{{ number_format($adhoc->items->sum(fn($i) => $i->quantity * $i->price), 2) }}</td>
+                <td>
+                  <select name="adhoc_action[{{ $adhoc->id }}]" class="form-control">
+                    <option value="skip">Skip for now</option>
+                    @if($adhoc->existing_sale_invoice_id)
+                      <option value="existing">Add to existing invoice SI-{{ $adhoc->existingInvoice->invoice_no ?? '?' }}</option>
+                    @else
+                      <option value="new">Create new invoice</option>
+                    @endif
+                  </select>
+                </td>
+              </tr>
+              @endforeach
+            </tbody>
+          </table>
+          @endif
+
           <div class="row mb-3">
             <div class="col-md-3">
               <label>Settlement Date</label>
@@ -27,6 +65,15 @@
               <input type="text" name="remarks" class="form-control" placeholder="e.g. Customer B short paid due to damaged carton">
             </div>
           </div>
+
+          @if($adhocSales->where('existing_sale_invoice_id', '!=', null)->count() > 0)
+          <div class="alert alert-warning py-2">
+            <i class="fas fa-exclamation-triangle"></i>
+            Note: if you choose "Add to existing invoice" above, that invoice's total will increase — refresh this page after saving
+            to see the updated amount reflected in the invoice list below before entering cash figures, or add the on-trip sale's
+            value manually to your cash calculation for that invoice.
+          </div>
+          @endif
 
           @foreach($trip->invoices as $invoice)
           <div class="card mb-3">

@@ -6,6 +6,7 @@ use App\Models\Settlement;
 use App\Models\DispatchTrip;
 use App\Models\ChartOfAccounts;
 use App\Models\Voucher;
+use App\Models\TripAdhocSale;
 use App\Services\StockService;
 use App\Services\VoucherService;
 use Illuminate\Http\Request;
@@ -39,7 +40,15 @@ class SettlementController extends Controller
             return back()->with('error', 'This trip is not ready for settlement (must be dispatched first, and not already settled).');
         }
 
-        return view('settlements.create', compact('trip'));
+        // NEW: on-trip sales the delivery manager recorded (leftover stock
+        // sold to a customer already on the trip, or a brand-new customer).
+        // Office reviews these here and folds them into real invoicing.
+        $adhocSales = TripAdhocSale::with(['customer', 'items.product', 'items.variation', 'existingInvoice'])
+            ->where('dispatch_trip_id', $trip->id)
+            ->where('status', 'pending')
+            ->get();
+
+        return view('settlements.create', compact('trip', 'adhocSales'));
     }
 
     public function store(Request $request, $tripId)
@@ -54,16 +63,21 @@ class SettlementController extends Controller
             'settlement_date'      => 'required|date',
             'total_cash_received'  => 'required|numeric|min:0',
             'cash'                 => 'required|array',
-            'cash.*'                => 'nullable|numeric|min:0',
-            'returns'               => 'nullable|array',
-            'returns.*'              => 'nullable|numeric|min:0',
-            'remarks'               => 'nullable|string',
+            'cash.*'               => 'nullable|numeric|min:0',
+            'returns'              => 'nullable|array',
+            'returns.*'            => 'nullable|numeric|min:0',
+            'remarks'              => 'nullable|string',
+            // NEW: office decides how to process each pending adhoc sale.
+            // 'existing' → add its items onto that customer's invoice on this trip.
+            // 'new' → create a standalone new invoice for that customer.
+            // 'skip' → leave it pending, don't process this time.
+            'adhoc_action'         => 'nullable|array',
+            'adhoc_action.*'       => 'nullable|in:existing,new,skip',
         ]);
 
-        $cashInputs    = $request->input('cash', []);
-        $returnInputs  = $request->input('returns', []);
+        $cashInputs   = $request->input('cash', []);
+        $returnInputs = $request->input('returns', []);
 
-        // Reconciliation check — cash entered per invoice must equal the declared total
         $sumCash = array_sum(array_map('floatval', $cashInputs));
         if (abs($sumCash - (float) $request->total_cash_received) > 0.01) {
             return back()->withInput()->with('error',
@@ -84,13 +98,28 @@ class SettlementController extends Controller
             $settlementNo  = str_pad($last ? intval($last->settlement_no) + 1 : 1, 6, '0', STR_PAD_LEFT);
 
             $settlement = Settlement::create([
-                'settlement_no'  => $settlementNo,
-                'dispatch_trip_id' => $trip->id,
-                'settlement_date'  => $request->settlement_date,
+                'settlement_no'       => $settlementNo,
+                'dispatch_trip_id'    => $trip->id,
+                'settlement_date'     => $request->settlement_date,
                 'total_cash_received' => $request->total_cash_received,
-                'remarks'          => $request->remarks,
-                'created_by'       => auth()->id(),
+                'remarks'             => $request->remarks,
+                'created_by'          => auth()->id(),
             ]);
+
+            // ── NEW: process on-trip adhoc sales BEFORE the normal invoice
+            // loop, so if any get added onto an existing invoice, the
+            // updated item list/total is what the rest of settlement uses.
+            $adhocSales = TripAdhocSale::with('items')->where('dispatch_trip_id', $trip->id)->where('status', 'pending')->get();
+
+            foreach ($adhocSales as $adhoc) {
+                $action = $request->input('adhoc_action.' . $adhoc->id, 'skip');
+                if ($action === 'skip') continue;
+
+                $this->processAdhocSale($adhoc, $action, $request->settlement_date, $settlementNo);
+            }
+
+            // Refresh trip's invoices — adhoc processing may have added a new invoice
+            $trip->load('invoices.items');
 
             $grandReturnedValue = 0;
             $grandWht           = 0;
@@ -146,8 +175,6 @@ class SettlementController extends Controller
                     ]);
                 }
 
-                // ── Accounting entries ──────────────────────────────
-                // ── Accounting entries — single combined voucher per invoice ──────────
                 $lines = [];
 
                 if ($returnedValueNet > 0) {
@@ -187,6 +214,7 @@ class SettlementController extends Controller
                         $lines
                     );
                 }
+
                 $invoice->update([
                     'paid_amount' => $invoice->paid_amount + $whtAmount + $returnedValueGross + $cashAllocated,
                 ]);
@@ -210,6 +238,77 @@ class SettlementController extends Controller
         }
     }
 
+    /**
+     * Processes one pending on-trip adhoc sale:
+     *  - 'existing': appends its items onto the customer's existing invoice
+     *    on this trip (quantity/price added as new line items, invoice
+     *    totals recalculated). No new stock movement — the stock was
+     *    already accounted for as delivered on the original invoice; this
+     *    just reassigns "leftover, undelivered" stock to a real sale
+     *    instead of it going back as a return.
+     *  - 'new': creates a brand-new Sale Invoice for that customer,
+     *    dated today, tied to this trip, fully paid via cash at settlement
+     *    (handled in the normal per-invoice loop above, since it becomes
+     *    part of $trip->invoices once created).
+     */
+    private function processAdhocSale(TripAdhocSale $adhoc, string $action, string $settlementDate, string $settlementNo): void
+    {
+        if ($action === 'existing' && $adhoc->existing_sale_invoice_id) {
+            $invoice = \App\Models\SaleInvoice::findOrFail($adhoc->existing_sale_invoice_id);
+            $addedTotal = 0;
+
+            foreach ($adhoc->items as $item) {
+                $lineTotal = $item->quantity * $item->price;
+                $addedTotal += $lineTotal;
+
+                $invoice->items()->create([
+                    'item_id'      => $item->product_id,
+                    'variation_id' => $item->variation_id,
+                    'quantity'     => $item->quantity,
+                    'price'        => $item->price,
+                    'cost_price'   => \App\Models\Product::find($item->product_id)->cost_price ?? 0,
+                ]);
+            }
+
+            $invoice->increment('net_amount', $addedTotal);
+            $invoice->increment('total_amount', $addedTotal);
+
+            $adhoc->update(['status' => 'processed', 'processed_sale_invoice_id' => $invoice->id]);
+
+        } elseif ($action === 'new') {
+            $lastInvoice = \App\Models\SaleInvoice::lockForUpdate()->orderByDesc('id')->first();
+            $invoiceNo   = str_pad($lastInvoice ? intval($lastInvoice->invoice_no) + 1 : 1, 6, '0', STR_PAD_LEFT);
+
+            $netAmount = $adhoc->items->sum(fn ($i) => $i->quantity * $i->price);
+
+            $invoice = \App\Models\SaleInvoice::create([
+                'invoice_no'       => $invoiceNo,
+                'customer_id'      => $adhoc->customer_id,
+                'dispatch_trip_id' => $adhoc->dispatch_trip_id,
+                'invoice_date'     => $settlementDate,
+                'payment_terms'    => $adhoc->payment_terms,
+                'net_amount'       => $netAmount,
+                'total_amount'     => $netAmount,
+                'paid_amount'      => 0,
+                'is_tax_invoice'   => false,
+                'remarks'          => 'On-trip sale' . ($adhoc->remarks ? " — {$adhoc->remarks}" : ''),
+                'created_by'       => auth()->id(),
+            ]);
+
+            foreach ($adhoc->items as $item) {
+                $invoice->items()->create([
+                    'item_id'      => $item->product_id,
+                    'variation_id' => $item->variation_id,
+                    'quantity'     => $item->quantity,
+                    'price'        => $item->price,
+                    'cost_price'   => \App\Models\Product::find($item->product_id)->cost_price ?? 0,
+                ]);
+            }
+
+            $adhoc->update(['status' => 'processed', 'processed_sale_invoice_id' => $invoice->id]);
+        }
+    }
+
     public function show($id)
     {
         $settlement = Settlement::with(['dispatchTrip.deliveryManager', 'allocations.invoice.customer', 'allocations.returnItems.product'])
@@ -218,9 +317,6 @@ class SettlementController extends Controller
         return view('settlements.show', compact('settlement'));
     }
 
-    /**
-     * Delivery manager physically hands the cash to the office cashier.
-     */
     public function clearToOffice($id)
     {
         $settlement = Settlement::with('dispatchTrip.deliveryManager')->findOrFail($id);
