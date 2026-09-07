@@ -5,7 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\SaleOrderController as ApiSaleOrderController;
 use App\Http\Controllers\Api\ProductController as ApiProductController;
 use App\Http\Controllers\Api\HomeController as ApiHomeController;
-use App\Http\Controllers\Api\DispatchTripController; // ← this was missing
+use App\Http\Controllers\Api\DispatchTripController;
 
 Route::post('/booker/login', [AuthController::class, 'login']);
 
@@ -29,6 +29,7 @@ Route::middleware(['auth:sanctum', 'active.user'])->prefix('booker')->group(func
     Route::get('/trips', [DispatchTripController::class, 'index']);
     Route::get('/trips/{id}', [DispatchTripController::class, 'show']);
     Route::post('/trips/{id}/delivered', [DispatchTripController::class, 'updateDelivered']);
+    Route::get('/trips/{id}/remaining-stock', [DispatchTripController::class, 'remainingStock']);
     Route::get('/trips/{id}/customers', [DispatchTripController::class, 'tripCustomers']);
-    Route::post('/trips/{id}/adhoc-sale', [DispatchTripController::class, 'storeAdhocSale']);       
+    Route::post('/trips/{id}/adhoc-sale', [DispatchTripController::class, 'storeAdhocSale']);
 });
