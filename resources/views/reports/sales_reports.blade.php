@@ -69,7 +69,7 @@
                             <tr><td colspan="8" class="text-center text-muted py-3">No sales found in this period.</td></tr>
                         @endforelse
                     </tbody>
-                    @if(count($reports['sale_register']) > 0)
+                                        @if(count($reports['sale_register']) > 0)
                     <tfoot class="table-light fw-bold">
                         <tr>
                             <td colspan="5" class="text-end">Total:</td>
@@ -78,18 +78,21 @@
                             <td class="text-end">{{ number_format(collect($reports['sale_register'])->sum('amount'), 2) }}</td>
                         </tr>
                     </tfoot>
-                    <div class="row justify-content-end mt-2">
-                        <div class="col-md-4">
-                            <table class="table table-borderless table-sm mb-0">
-                                <tr><td>Gross Sales</td><td class="text-end">{{ number_format($reports['sale_register_summary']['gross'], 2) }}</td></tr>
-                                <tr class="text-danger"><td>Less: Returns</td><td class="text-end">-{{ number_format($reports['sale_register_summary']['returns'], 2) }}</td></tr>
-                                <tr class="fw-bold border-top"><td>Net Sales (matches ledger)</td><td class="text-end">{{ number_format($reports['sale_register_summary']['net'], 2) }}</td></tr>
-                            </table>
-                        </div>
-                    </div>
                     @endif
                 </table>
             </div>
+
+            @if(count($reports['sale_register']) > 0)
+            <div class="row justify-content-end mt-2">
+                <div class="col-md-4">
+                    <table class="table table-borderless table-sm mb-0">
+                        <tr><td>Gross Sales</td><td class="text-end">{{ number_format($reports['sale_register_summary']['gross'], 2) }}</td></tr>
+                        <tr class="text-danger"><td>Less: Returns</td><td class="text-end">-{{ number_format($reports['sale_register_summary']['returns'], 2) }}</td></tr>
+                        <tr class="fw-bold border-top"><td>Net Sales (matches ledger)</td><td class="text-end">{{ number_format($reports['sale_register_summary']['net'], 2) }}</td></tr>
+                    </table>
+                </div>
+            </div>
+            @endif
         </div>
 
         {{-- ══════════════════ TAB 2: DISPATCH REPORT ══════════════════ --}}
