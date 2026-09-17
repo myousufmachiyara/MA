@@ -94,9 +94,14 @@
                     <td>{{ $item->quantity }}</td>
                     <td>{{ number_format($item->price, 2) }}</td>
                     <td>
-                      <input type="number" name="returns[{{ $item->id }}]" class="form-control return-qty"
-                             data-invoice="{{ $invoice->id }}" data-price="{{ $item->price }}" data-gst-rate="{{ $invoice->gst_rate ?? 0 }}"
-                             value="0" min="0" max="{{ $item->quantity }}" step="any" onchange="recalc({{ $invoice->id }})">
+                    @php
+                        $autoReturned = $item->delivered_quantity !== null
+                            ? max(0, $item->quantity - $item->delivered_quantity)
+                            : 0;
+                    @endphp
+                    <input type="number" name="returns[{{ $item->id }}]" class="form-control return-qty"
+                          data-invoice="{{ $invoice->id }}" data-price="{{ $item->price }}" data-gst-rate="{{ $invoice->gst_rate ?? 0 }}"
+                          value="{{ $autoReturned }}" min="0" max="{{ $item->quantity }}" step="any" onchange="recalc({{ $invoice->id }})">
                     </td>
                   </tr>
                   @endforeach
@@ -164,6 +169,14 @@
     $('#total_cash_received').val(sum.toFixed(2));
   }
 
-  $(document).ready(sumTotal);
+  $(document).ready(function () {
+      // NEW: run recalc for every invoice on load, so the prefilled
+      // Returned Qty values (from delivery manager's delivered_quantity)
+      // are reflected in Returned Value / Balance Due / Cash Received
+      // immediately, not just after a manual change.
+      @foreach($trip->invoices as $invoice)
+          recalc({{ $invoice->id }});
+      @endforeach
+  });
 </script>
 @endsection

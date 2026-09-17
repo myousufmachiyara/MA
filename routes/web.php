@@ -130,7 +130,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/{id}/orders/{orderId}', [DispatchTripController::class, 'removeOrder'])->middleware('check.permission:dispatch_trips.edit')->name('removeOrder');
         Route::post('/{id}/dispatch', [DispatchTripController::class, 'dispatch'])->middleware('check.permission:dispatch_trips.edit')->name('dispatch');
         Route::put('/{id}/cancel', [DispatchTripController::class, 'cancel'])->middleware('check.permission:dispatch_trips.edit')->name('cancel');
-
+        Route::get('/trips/{id}/remaining-stock', [DispatchTripController::class, 'remainingStock']);
+        
         // Settlement create/store hang off a trip ID, not a settlement ID
         Route::get('/{id}/settle', [SettlementController::class, 'create'])->middleware('check.permission:settlements.create')->name('settle');
         Route::post('/{id}/settle', [SettlementController::class, 'store'])->middleware('check.permission:settlements.create')->name('settle.store');

@@ -187,6 +187,14 @@ class DispatchTripController extends Controller
      * Quantities are capped against computeRemainingStock() so a delivery
      * manager can't accidentally (or deliberately) sell more of an item
      * than is actually surplus in the vehicle.
+     *
+     * FIX: each TripAdhocSaleItem now also stores 'unit', copied from the
+     * matching surplus row (which itself was copied from the original
+     * SaleInvoiceItem's unit) — this is required at settlement time when
+     * SettlementController::processAdhocSale() creates real
+     * sale_invoice_items rows, since that column is NOT NULL with no
+     * default. Without it, settling a trip with an adhoc sale throws
+     * "Field 'unit' doesn't have a default value".
      */
     public function storeAdhocSale(Request $request, $id)
     {
@@ -240,12 +248,16 @@ class DispatchTripController extends Controller
             ]);
 
             foreach ($request->items as $item) {
+                $key  = $item['product_id'] . '-' . ($item['variation_id'] ?? 0);
+                $unit = $available->has($key) ? $available[$key]['unit'] : null;
+
                 TripAdhocSaleItem::create([
                     'trip_adhoc_sale_id' => $sale->id,
                     'product_id'         => $item['product_id'],
                     'variation_id'       => $item['variation_id'] ?? null,
                     'quantity'           => $item['quantity'],
                     'price'              => $item['price'],
+                    'unit'               => $unit ?? 1, // ← FIX
                 ]);
             }
 

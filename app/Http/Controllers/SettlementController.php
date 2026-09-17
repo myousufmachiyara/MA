@@ -267,6 +267,7 @@ class SettlementController extends Controller
                     'quantity'     => $item->quantity,
                     'price'        => $item->price,
                     'cost_price'   => \App\Models\Product::find($item->product_id)->cost_price ?? 0,
+                    'unit'         => $item->unit ?? 1, // ← added
                 ]);
             }
 
@@ -302,6 +303,7 @@ class SettlementController extends Controller
                     'quantity'     => $item->quantity,
                     'price'        => $item->price,
                     'cost_price'   => \App\Models\Product::find($item->product_id)->cost_price ?? 0,
+                    'unit'         => $item->unit ?? 1, // ← added
                 ]);
             }
 
