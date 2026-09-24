@@ -46,6 +46,12 @@ class SaleInvoiceController extends Controller
     {
         $query = SaleInvoice::with(['customer', 'dispatchTrip', 'vouchers']);
 
+        if ($request->filled('from_date')) {
+            $query->whereDate('invoice_date', '>=', $request->from_date);
+        }
+        if ($request->filled('to_date')) {
+            $query->whereDate('invoice_date', '<=', $request->to_date);
+        }
         if ($request->filled('customer_id')) {
             $query->where('customer_id', $request->customer_id);
         }

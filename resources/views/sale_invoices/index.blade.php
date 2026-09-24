@@ -18,8 +18,14 @@
 
       <div class="card-body">
         <form method="GET" class="row g-2 mb-3">
+          <div class="col-md-2">
+            <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}" placeholder="From">
+          </div>
+          <div class="col-md-2">
+            <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}" placeholder="To">
+          </div>
           <div class="col-md-3">
-            <select name="customer_id" class="form-control select2-js" onchange="this.form.submit()">
+            <select name="customer_id" class="form-control select2-js">
               <option value="">All Customers</option>
               @foreach($customers ?? [] as $c)
                 <option value="{{ $c->id }}" {{ request('customer_id') == $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
@@ -27,11 +33,17 @@
             </select>
           </div>
           <div class="col-md-2">
-            <select name="source" class="form-control" onchange="this.form.submit()">
+            <select name="source" class="form-control">
               <option value="">All Sources</option>
               <option value="manual" {{ request('source') === 'manual' ? 'selected' : '' }}>Manual / Direct</option>
               <option value="trip" {{ request('source') === 'trip' ? 'selected' : '' }}>Dispatch Trip</option>
             </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i> Filter</button>
+          </div>
+          <div class="col-md-1">
+            <a href="{{ route('sale_invoices.index') }}" class="btn btn-outline-secondary w-100" title="Clear filters"><i class="fas fa-times"></i></a>
           </div>
         </form>
 
@@ -53,7 +65,7 @@
               </tr>
             </thead>
             <tbody>
-              @forelse($invoices as $invoice)
+              @foreach($invoices as $invoice)
               <tr>
                 <td><a href="{{ route('sale_invoices.show', $invoice->id) }}">SI-{{ $invoice->invoice_no }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($invoice->invoice_date)->format('d-M-Y') }}</td>
@@ -96,9 +108,7 @@
                   @endif
                 </td>
               </tr>
-              @empty
-                <tr><td colspan="11" class="text-center text-muted py-4">No sale invoices found.</td></tr>
-              @endforelse
+              @endforeach
             </tbody>
           </table>
         </div>
@@ -110,7 +120,12 @@
 <script>
   $(document).ready(function () {
     $('.select2-js').select2({ width: '100%' });
-    $('#invoicesTable').DataTable({ pageLength: 50, order: [[1, 'desc']], searching: true });
+    $('#invoicesTable').DataTable({
+      pageLength: 50,
+      order: [[1, 'desc']],
+      searching: true,
+      language: { emptyTable: "No sale invoices found." }
+    });
   });
 </script>
 @endsection
